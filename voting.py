@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import spacy
+import time
 from opencage.geocoder import OpenCageGeocode
 
 # Load spaCy model
@@ -13,23 +14,33 @@ OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenC
 # Initialize geocoder
 geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
 
-# NewsAPI key
-NEWS_API_KEY = 'c18531a160cb4b729778ecbf3c643ead'  # Replace with your NewsAPI key
+# RapidAPI News API key and host
+RAPIDAPI_KEY = 'a8f2066c48msh9dfe0269ffb64ccp1ba7bbjsnc1ae5ea3e34b'  # Replace with your RapidAPI key
+RAPIDAPI_HOST = 'newsx.p.rapidapi.com'
+
 IPINFO_API_KEY = 'f2439f60dfe99d'  # Replace with your ipinfo API key
 
-def fetch_news(api_key, query=None, category=None, country='us'):
-    if query:
-        url = f'https://newsapi.org/v2/everything?q={query}&apiKey={api_key}'
-    else:
-        url = f'https://newsapi.org/v2/top-headlines?country={country}&category={category}&apiKey={api_key}'
-    response = requests.get(url)
+def fetch_news(api_key, api_host, querystring):
+    url = "https://newsx.p.rapidapi.com/search/"
+    headers = {
+        "x-rapidapi-key": api_key,
+        "x-rapidapi-host": api_host
+    }
     
-    # Check for HTTP errors
-    if response.status_code != 200:
-        st.error(f"Failed to fetch news: {response.status_code} - {response.reason}")
-        st.stop()
+    retries = 3
+    for i in range(retries):
+        response = requests.get(url, headers=headers, params=querystring)
+        if response.status_code == 200:
+            return response.json()
+        elif response.status_code == 429:
+            st.warning("Rate limit exceeded. Retrying...")
+            time.sleep(2 ** i)  # Exponential backoff
+        else:
+            st.error(f"Failed to fetch news: {response.status_code} - {response.reason}")
+            st.stop()
     
-    return response.json()
+    st.error("Failed to fetch news after multiple retries.")
+    st.stop()
 
 def extract_relevant_entities(text):
     doc = nlp(text)
@@ -80,11 +91,15 @@ selected_category = st.sidebar.selectbox("Select a category:", categories)
 # Text input for user-specific news
 user_query = st.sidebar.text_input("What kind of news do you want to see?")
 
-# Fetch news data based on user query or selected category
+# Prepare query parameters
+querystring = {"limit": "10", "skip": "0"}
 if user_query:
-    news_data = fetch_news(NEWS_API_KEY, query=user_query)
-else:
-    news_data = fetch_news(NEWS_API_KEY, category=selected_category)
+    querystring["q"] = user_query
+elif selected_category:
+    querystring["category"] = selected_category
+
+# Fetch news data
+news_data = fetch_news(RAPIDAPI_KEY, RAPIDAPI_HOST, querystring)
 
 st.title("WELCOME TO WHAT WE WANT!")
 st.header(f"HAVE YOUR SAY")
@@ -94,8 +109,8 @@ if user_query:
 else:
     st.header(f"Trending News in {selected_category.capitalize()}")
 
-if news_data['status'] == 'ok':
-    articles = news_data['articles']
+if news_data:
+    articles = news_data.get('articles', [])
 
     # Display articles in a grid layout
     cols = st.columns(3)
@@ -103,12 +118,12 @@ if news_data['status'] == 'ok':
         with cols[idx % 3]:
             st.markdown("---")
             st.subheader(article['title'])
-            if article.get('urlToImage'):
-                st.image(article['urlToImage'], use_column_width=True)
+            if article.get('media'):
+                st.image(article['media'], use_column_width=True)
             st.write(article['description'])
-            st.markdown(f"[Read more]({article['url']})")
+            st.markdown(f"[Read more]({article['link']})")
 
-            content = article.get('content', article['description'])
+            content = article.get('summary', article['description'])
             if content:
                 poll_type = determine_poll_type(article)
                 if poll_type == "yes_no":
