@@ -17,14 +17,12 @@ geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
 NEWS_API_KEY = 'c18531a160cb4b729778ecbf3c643ead'  # Replace with your NewsAPI key
 IPINFO_API_KEY = 'f2439f60dfe99d'  # Replace with your ipinfo API key
 
-def fetch_news(api_key, query=None, category=None):
-    base_url = 'https://newsapi.org/v2/top-headlines?sources=bbc-news&apiKey={}'.format(api_key)
+region=st.text_input("Enter country")
+def fetch_news(api_key, query=None, category=None, country=region):
     if query:
-        url = f'{base_url}&q={query}'
-    elif category:
-        url = f'{base_url}&category={category}'
+        url = f'https://newsapi.org/v2/everything?q={query}&apiKey={api_key}'
     else:
-        url = base_url
+        url = f'https://newsapi.org/v2/top-headlines?country={country}&category={category}&apiKey={api_key}'
     response = requests.get(url)
     return response.json()
 
