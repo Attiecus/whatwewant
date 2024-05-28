@@ -68,125 +68,115 @@ def plot_world_map(location_votes):
                 data.append({'lat': lat, 'lon': lon})
     return data
 
-# Define categories
 categories = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology']
+selected_category = st.sidebar.selectbox("Select a category:", categories)
 
-# Initialize session state for topic selection
-if 'topics_selected' not in st.session_state:
-    st.session_state['topics_selected'] = False
+# Text input for user-specific news
+user_query = st.sidebar.text_input("What kind of news do you want to see?")
 
-if not st.session_state['topics_selected']:
-    st.title("Select News Topics")
-    with st.form("topics_form"):
-        st.write("Welcome! Please select the news topics you are interested in.")
-        selected_topics = st.multiselect("Select topics:", categories)
-        submitted = st.form_submit_button("Submit")
-        if submitted and selected_topics:
-            st.session_state['topics_selected'] = True
-            st.session_state['selected_topics'] = selected_topics
-            st.experimental_rerun()
-
-# Check if topics have been selected
-if 'selected_topics' in st.session_state and st.session_state['selected_topics']:
-    selected_topics = st.session_state['selected_topics']
-    st.title("WELCOME TO WHAT WE WANT!")
-    st.header("HAVE YOUR SAY")
-    st.header(f"Trending News in {' & '.join(selected_topics)}")
-
-    for selected_category in selected_topics:
-        st.subheader(f"Category: {selected_category.capitalize()}")
-        news_data = fetch_news(NEWS_API_KEY, category=selected_category)
-        
-        if news_data['status'] == 'ok':
-            articles = news_data['articles']
-            for article in articles:
-                title = article['title']
-                description = article['description']
-                content = article.get('content', description)
-                image_url = article.get('urlToImage')
-                url = article['url']
-                
-                st.subheader(title)
-                if image_url:
-                    st.image(image_url, caption=title)
-                
-                st.write(description)
-                st.markdown(f"[Read more]({url})")
-
-                if content:
-                    poll_type = determine_poll_type(article)
-                    if poll_type == "yes_no":
-                        options = ["Yes", "No"]
-                    else:
-                        options = extract_relevant_entities(content)
-
-                    hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
-
-                    if options:
-                        # Create a unique key for each article's voting state
-                        vote_key = f"votes_{title.replace(' ', '_')}"
-                        location_key = f"location_votes_{title.replace(' ', '_')}"
-
-                        if vote_key not in st.session_state:
-                            st.session_state[vote_key] = {option: 0 for option in options}
-                        if location_key not in st.session_state:
-                            st.session_state[location_key] = {}
-
-                        votes = st.session_state[vote_key]
-                        location_votes = st.session_state[location_key]
-
-                        # AI-generated prompt
-                        question = generate_question(article)
-                        st.write(question)
-
-                        voted_option = st.radio("Vote on this news:", hashtag_options, key=title)
-
-                        if st.button("Vote", key=f"vote_{title}"):
-                            if voted_option in votes:
-                                votes[voted_option] += 1
-                            else:
-                                votes[voted_option] = 1
-                            st.session_state[vote_key] = votes  # Update session state
-
-                            # Get user location
-                            user_location = get_user_location(IPINFO_API_KEY)
-                            country = user_location.get('country', 'Unknown')
-
-                            # Update location-based vote count
-                            if country not in location_votes:
-                                location_votes[country] = 1
-                            else:
-                                location_votes[country] += 1
-                            st.session_state[location_key] = location_votes
-
-                            st.success("Thank you for voting!")
-
-                        # Display poll results if the user has voted
-                        if any(count > 0 for count in votes.values()):
-                            st.write("Current Poll Results:")
-                            total_votes = sum(votes.values())
-                            for option, count in votes.items():
-                                percentage = count / total_votes * 100 if total_votes != 0 else 0
-                                st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
-                                st.progress(percentage / 100)
-                            st.write("---")
-
-                            # Display location-based poll results
-                            st.write("Votes by Country:")
-                            for country, count in location_votes.items():
-                                st.write(f"{country}: {count} votes")
-
-                            # Plot the world map with points
-                            st.write("World Map of Votes:")
-                            map_data = plot_world_map(location_votes)
-                            st.map(map_data)
-                        st.write("---")
-
-                    else:
-                        st.write("No relevant entities found for voting.")
-                else:
-                    st.write("No content available for deeper analysis.")
-        else:
-            st.error("Failed to fetch trending news.")
+# Fetch news data based on user query or selected category
+if user_query:
+    news_data = fetch_news(NEWS_API_KEY, query=user_query)
 else:
-    st.error("No topics selected. Please refresh the page and select topics to see the news.")
+    news_data = fetch_news(NEWS_API_KEY, category=selected_category)
+
+st.title("WELCOME TO WHAT WE WANT!")
+st.header(f"HAVE YOUR SAY")
+
+if user_query:
+    st.header(f"Trending News for '{user_query}'")
+else:
+    st.header(f"Trending News in {selected_category.capitalize()}")
+
+if news_data['status'] == 'ok':
+    articles = news_data['articles']
+
+    for article in articles:
+        title = article['title']
+        description = article['description']
+        content = article.get('content', description)
+        image_url = article.get('urlToImage')
+        url = article['url']
+        
+        st.subheader(title)
+        if image_url:
+            st.image(image_url, caption=title)
+        
+        st.write(description)
+        st.markdown(f"[Read more]({url})")
+
+        if content:
+            poll_type = determine_poll_type(article)
+            if poll_type == "yes_no":
+                options = ["Yes", "No"]
+            else:
+                options = extract_relevant_entities(content)
+
+            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+
+            if options:
+                # Create a unique key for each article's voting state
+                vote_key = f"votes_{title.replace(' ', '_')}"
+                location_key = f"location_votes_{title.replace(' ', '_')}"
+
+                if vote_key not in st.session_state:
+                    st.session_state[vote_key] = {option: 0 for option in options}
+                if location_key not in st.session_state:
+                    st.session_state[location_key] = {}
+
+                votes = st.session_state[vote_key]
+                location_votes = st.session_state[location_key]
+
+                # AI-generated prompt
+                question = generate_question(article)
+                st.write(question)
+
+                voted_option = st.radio("Vote on this news:", hashtag_options, key=title)
+
+                if st.button("Vote", key=f"vote_{title}"):
+                    if voted_option in votes:
+                        votes[voted_option] += 1
+                    else:
+                        votes[voted_option] = 1
+                    st.session_state[vote_key] = votes  # Update session state
+
+                    # Get user location
+                    user_location = get_user_location(IPINFO_API_KEY)
+                    country = user_location.get('country', 'Unknown')
+
+                    # Update location-based vote count
+                    if country not in location_votes:
+                        location_votes[country] = 1
+                    else:
+                        location_votes[country] += 1
+                    st.session_state[location_key] = location_votes
+
+                    st.success("Thank you for voting!")
+
+                # Display poll results if the user has voted
+                if any(count > 0 for count in votes.values()):
+                    st.write("Current Poll Results:")
+                    total_votes = sum(votes.values())
+                    for option, count in votes.items():
+                        percentage = count / total_votes * 100 if total_votes != 0 else 0
+                        st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
+                        st.progress(percentage / 100)
+                    st.write("---")
+
+                    # Display location-based poll results
+                    st.write("Votes by Country:")
+                    for country, count in location_votes.items():
+                        st.write(f"{country}: {count} votes")
+
+                    # Plot the world map with points
+                    st.write("World Map of Votes:")
+                    map_data = plot_world_map(location_votes)
+                    st.map(map_data)
+                st.write("---")
+
+            else:
+                st.write("No relevant entities found for voting.")
+        else:
+            st.write("No content available for deeper analysis.")
+else:
+    st.error("Failed to fetch trending news.")
