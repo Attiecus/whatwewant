@@ -185,4 +185,8 @@ if 'selected_topics' in st.session_state and st.session_state['selected_topics']
                     else:
                         st.write("No relevant entities found for voting.")
                 else:
-                    s
+                    st.write("No content available for deeper analysis.")
+        else:
+            st.error("Failed to fetch trending news.")
+else:
+    st.error("No topics selected. Please refresh the page and select topics to see the news.")
