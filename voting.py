@@ -4,6 +4,7 @@ import spacy
 from opencage.geocoder import OpenCageGeocode
 
 # Load spaCy model
+st.set_page_config(layout='wide')
 nlp = spacy.load("en_core_web_sm")
 
 # OpenCage API key
@@ -79,7 +80,9 @@ if search_query:
 else:
     news_data = fetch_news(NEWS_API_KEY, category=selected_category)
 
-st.title(f"Trending News in {selected_category.capitalize()}")
+st.title("WELCOME TO WHAT WE WANT!")
+st.header(f"HAVE YOUR SAY")
+st.header(f"Trending News in {selected_category.capitalize()}")
 
 if news_data['status'] == 'ok':
     articles = news_data['articles']
@@ -105,25 +108,27 @@ if news_data['status'] == 'ok':
             else:
                 options = extract_relevant_entities(content)
 
+            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+
             if options:
                 # Create a unique key for each article's voting state
                 vote_key = f"votes_{title.replace(' ', '_')}"
                 location_key = f"location_votes_{title.replace(' ', '_')}"
-                
+
                 if vote_key not in st.session_state:
                     st.session_state[vote_key] = {option: 0 for option in options}
                 if location_key not in st.session_state:
                     st.session_state[location_key] = {}
-                
+
                 votes = st.session_state[vote_key]
                 location_votes = st.session_state[location_key]
-                
+
                 # AI-generated prompt
                 question = generate_question(article)
                 st.write(question)
-                
-                voted_option = st.radio("Vote on this news:", options, key=title)
-                
+
+                voted_option = st.radio("Vote on this news:", hashtag_options, key=title)
+
                 if st.button("Vote", key=f"vote_{title}"):
                     votes[voted_option] += 1
                     st.session_state[vote_key] = votes  # Update session state
