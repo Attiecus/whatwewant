@@ -130,7 +130,10 @@ if news_data['status'] == 'ok':
                 voted_option = st.radio("Vote on this news:", hashtag_options, key=title)
 
                 if st.button("Vote", key=f"vote_{title}"):
-                    votes[voted_option] += 1
+                    if voted_option in votes:
+                        votes[voted_option] += 1
+                    else:
+                        votes[voted_option] = 1
                     st.session_state[vote_key] = votes  # Update session state
 
                     # Get user location
