@@ -2,3 +2,4 @@ matplotlib==3.8.4
 Requests==2.32.2
 spacy==3.7.4
 streamlit==1.33.0
+en_core_web_sm
