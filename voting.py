@@ -17,7 +17,7 @@ geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
 NEWS_API_KEY = 'c18531a160cb4b729778ecbf3c643ead'  # Replace with your NewsAPI key
 IPINFO_API_KEY = 'f2439f60dfe99d'  # Replace with your ipinfo API key
 
-def fetch_news(api_key, query=None, category=None, country='uk'):
+def fetch_news(api_key, query=None, category=None, country='us'):
     if query:
         url = f'https://newsapi.org/v2/everything?q={query}&apiKey={api_key}'
     else:
