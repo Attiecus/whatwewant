@@ -2,9 +2,34 @@ import streamlit as st
 import requests
 import spacy
 from opencage.geocoder import OpenCageGeocode
+from bs4 import BeautifulSoup
+import feedparser
+
+# Set Streamlit page configuration
+st.set_page_config(layout='wide')
+IPINFO_API_KEY = 'f2439f60dfe99d'
+# Function to fetch article content and image
+# Function to fetch article content and image
+def fetch_article_content(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    
+    # Extract content
+    paragraphs = soup.find_all('p')
+    if paragraphs:
+        content = ' '.join([para.get_text() for para in paragraphs])  # Join all paragraphs
+    else:
+        content = 'Content not available'
+
+    # Extract image
+    image = None
+    img_tag = soup.find('meta', property='og:image')
+    if img_tag and img_tag['content']:
+        image = img_tag['content']
+    
+    return content, image
 
 # Load spaCy model
-st.set_page_config(layout='wide')
 nlp = spacy.load("en_core_web_sm")
 
 # OpenCage API key
@@ -13,24 +38,7 @@ OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenC
 # Initialize geocoder
 geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
 
-# NewsAPI key
-NEWS_API_KEY = '0d19b72180a149e291099eaf0f26ce58'  # Replace with your NewsAPI key
-IPINFO_API_KEY = 'f2439f60dfe99d'  # Replace with your ipinfo API key
-
-def fetch_news(api_key, query=None, category=None, country='us'):
-    if query:
-        url = f'https://newsapi.org/v2/everything?q={query}&apiKey={api_key}'
-    else:
-        url = f'https://newsapi.org/v2/top-headlines?country={country}&category={category}&apiKey={api_key}'
-    response = requests.get(url)
-    
-    # Check for HTTP errors
-    if response.status_code != 200:
-        st.error(f"Failed to fetch news: {response.status_code} - {response.reason}")
-        st.stop()
-    
-    return response.json()
-
+# Function to extract relevant entities from text
 def extract_relevant_entities(text):
     doc = nlp(text)
     entities = []
@@ -39,6 +47,7 @@ def extract_relevant_entities(text):
             entities.append(ent.text)
     return list(set(entities))  # Use set to remove duplicates
 
+# Function to generate a question based on the article
 def generate_question(article):
     title = article['title']
     description = article['description'] or ''
@@ -49,22 +58,26 @@ def generate_question(article):
             questions.append(f"What are your thoughts on this topic: '{sent}'?")
     return questions[0] if questions else "What do you think about this news?"
 
+# Function to determine the type of poll based on the article
 def determine_poll_type(article):
     if "policy" in article['title'].lower() or "election" in article['title'].lower():
         return "yes_no"
     else:
         return "entity_based"
 
+# Function to get the user's location
 def get_user_location(api_key):
     response = requests.get(f'https://ipinfo.io/json?token={api_key}')
     return response.json()
 
+# Function to get coordinates of a country
 def get_country_coordinates(country_name):
     result = geocoder.geocode(country_name)
     if result and len(result):
         return result[0]['geometry']['lat'], result[0]['geometry']['lng']
     return None, None
 
+# Function to plot world map with location-based votes
 def plot_world_map(location_votes):
     data = []
     for country, votes in location_votes.items():
@@ -74,54 +87,58 @@ def plot_world_map(location_votes):
                 data.append({'lat': lat, 'lon': lon})
     return data
 
-categories = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology']
-selected_category = st.sidebar.selectbox("Select a category:", categories)
+# Fetch RSS feed
+rss_url = 'http://feeds.bbci.co.uk/news/rss.xml'
+feed = feedparser.parse(rss_url)
 
-# Text input for user-specific news
-user_query = st.sidebar.text_input("What kind of news do you want to see?")
-
-# Fetch news data based on user query or selected category
-if user_query:
-    news_data = fetch_news(NEWS_API_KEY, query=user_query)
-else:
-    news_data = fetch_news(NEWS_API_KEY, category=selected_category)
-
+# Display articles in Streamlit
 st.title("WELCOME TO WHAT WE WANT!")
 st.header(f"HAVE YOUR SAY")
+# User input for filtering articles by keyword
+user_query = st.sidebar.text_input("Search for articles containing:")
 
-if user_query:
-    st.header(f"Trending News for '{user_query}'")
-else:
-    st.header(f"Trending News in {selected_category.capitalize()}")
 
-if news_data['status'] == 'ok':
-    articles = news_data['articles']
 
-    # Display articles in a grid layout
-    cols = st.columns(3)
-    for idx, article in enumerate(articles):
-        with cols[idx % 3]:
+
+if feed.entries:
+    # Determine the number of columns based on the number of entries
+    num_cols = min(len(feed.entries), 3)
+    cols = st.columns(num_cols)
+    rss_url = 'http://feeds.bbci.co.uk/news/rss.xml'
+    feed = feedparser.parse(rss_url)
+
+    for idx, entry in enumerate(feed.entries):
+        with cols[idx % num_cols]:
             st.markdown("---")
-            st.subheader(article['title'])
-            if article.get('urlToImage'):
-                st.image(article['urlToImage'], use_column_width=True)
-            st.write(article['description'])
-            st.markdown(f"[Read more]({article['url']})")
+            article_url = entry.link  # Get the URL of the individual article
+            content, image = fetch_article_content(article_url)  # Pass the article URL to fetch content and image
 
-            content = article.get('content', article['description'])
+            if image:
+                st.image(image, width=400)
+            st.markdown("---")
+            st.subheader(entry.title)
+            st.write(entry.summary, width=500)
+            st.markdown(f"[Read more]({entry.link})")
+
+            content = entry.summary
             if content:
-                poll_type = determine_poll_type(article)
+                poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
                 if poll_type == "yes_no":
                     options = ["Yes", "No"]
                 else:
                     options = extract_relevant_entities(content)
 
+                # Allow users to input custom options
+                custom_option = st.text_input(f"Enter a custom option for article {idx}:")  # Unique key for each input
+                if custom_option:
+                    options.append(custom_option)
+
                 hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
 
                 if options:
                     # Create a unique key for each article's voting state
-                    vote_key = f"votes_{article['title'].replace(' ', '_')}"
-                    location_key = f"location_votes_{article['title'].replace(' ', '_')}"
+                    vote_key = f"votes_{idx}"
+                    location_key = f"location_votes_{idx}"
 
                     if vote_key not in st.session_state:
                         st.session_state[vote_key] = {option: 0 for option in options}
@@ -132,12 +149,12 @@ if news_data['status'] == 'ok':
                     location_votes = st.session_state[location_key]
 
                     # AI-generated prompt
-                    question = generate_question(article)
+                    question = generate_question({'title': entry.title, 'description': entry.summary})
                     st.write(question)
 
-                    voted_option = st.radio("Vote on this news:", hashtag_options, key=article['title'])
+                    voted_option = st.radio("Vote on this news:", hashtag_options, key=f"radio_{idx}")
 
-                    if st.button("Vote", key=f"vote_{article['title']}"):
+                    if st.button("Vote", key=f"vote_{idx}"):
                         if voted_option in votes:
                             votes[voted_option] += 1
                         else:
@@ -184,3 +201,8 @@ if news_data['status'] == 'ok':
                 st.write("No content available for deeper analysis.")
 else:
     st.error("Failed to fetch trending news.")
+
+
+
+
+
