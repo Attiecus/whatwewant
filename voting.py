@@ -23,6 +23,12 @@ def fetch_news(api_key, query=None, category=None, country='us'):
     else:
         url = f'https://newsapi.org/v2/top-headlines?country={country}&category={category}&apiKey={api_key}'
     response = requests.get(url)
+    
+    # Check for HTTP errors
+    if response.status_code != 200:
+        st.error(f"Failed to fetch news: {response.status_code} - {response.reason}")
+        st.stop()
+    
     return response.json()
 
 def extract_relevant_entities(text):
