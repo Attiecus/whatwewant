@@ -14,7 +14,7 @@ OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenC
 geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
 
 # NewsAPI key
-NEWS_API_KEY = 'c18531a160cb4b729778ecbf3c643ead'  # Replace with your NewsAPI key
+NEWS_API_KEY = '0d19b72180a149e291099eaf0f26ce58'  # Replace with your NewsAPI key
 IPINFO_API_KEY = 'f2439f60dfe99d'  # Replace with your ipinfo API key
 
 def fetch_news(api_key, query=None, category=None, country='us'):
