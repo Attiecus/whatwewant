@@ -71,18 +71,22 @@ def plot_world_map(location_votes):
 categories = ['business', 'entertainment', 'general', 'health', 'science', 'sports', 'technology']
 selected_category = st.sidebar.selectbox("Select a category:", categories)
 
-# Search bar
-search_query = st.sidebar.text_input("Search for news:")
+# Text input for user-specific news
+user_query = st.sidebar.text_input("What kind of news do you want to see?")
 
-# Fetch news data based on search query or selected category
-if search_query:
-    news_data = fetch_news(NEWS_API_KEY, query=search_query)
+# Fetch news data based on user query or selected category
+if user_query:
+    news_data = fetch_news(NEWS_API_KEY, query=user_query)
 else:
     news_data = fetch_news(NEWS_API_KEY, category=selected_category)
 
 st.title("WELCOME TO WHAT WE WANT!")
 st.header(f"HAVE YOUR SAY")
-st.header(f"Trending News in {selected_category.capitalize()}")
+
+if user_query:
+    st.header(f"Trending News for '{user_query}'")
+else:
+    st.header(f"Trending News in {selected_category.capitalize()}")
 
 if news_data['status'] == 'ok':
     articles = news_data['articles']
