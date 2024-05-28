@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import spacy
 from opencage.geocoder import OpenCageGeocode
+from streamlit import Modal
 
 # Load spaCy model
 st.set_page_config(layout='wide')
@@ -76,7 +77,7 @@ if 'topics_selected' not in st.session_state:
     st.session_state['topics_selected'] = False
 
 if not st.session_state['topics_selected']:
-    with st.modal("Select News Topics"):
+    with st.Modal("Select News Topics"):
         st.write("Welcome! Please select the news topics you are interested in.")
         selected_topics = st.multiselect("Select topics:", categories)
         if st.button("Submit"):
