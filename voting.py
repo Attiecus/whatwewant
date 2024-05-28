@@ -2,7 +2,6 @@ import streamlit as st
 import requests
 import spacy
 from opencage.geocoder import OpenCageGeocode
-from streamlit import Modal
 
 # Load spaCy model
 st.set_page_config(layout='wide')
@@ -77,10 +76,12 @@ if 'topics_selected' not in st.session_state:
     st.session_state['topics_selected'] = False
 
 if not st.session_state['topics_selected']:
-    with st.Modal("Select News Topics"):
+    st.title("Select News Topics")
+    with st.form("topics_form"):
         st.write("Welcome! Please select the news topics you are interested in.")
         selected_topics = st.multiselect("Select topics:", categories)
-        if st.button("Submit"):
+        submitted = st.form_submit_button("Submit")
+        if submitted and selected_topics:
             st.session_state['topics_selected'] = True
             st.session_state['selected_topics'] = selected_topics
             st.experimental_rerun()
@@ -184,8 +185,4 @@ if 'selected_topics' in st.session_state and st.session_state['selected_topics']
                     else:
                         st.write("No relevant entities found for voting.")
                 else:
-                    st.write("No content available for deeper analysis.")
-        else:
-            st.error("Failed to fetch trending news.")
-else:
-    st.error("No topics selected. Please refresh the page and select topics to see the news.")
+                    s
