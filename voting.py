@@ -17,7 +17,7 @@ geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
 NEWS_API_KEY = 'c18531a160cb4b729778ecbf3c643ead'  # Replace with your NewsAPI key
 IPINFO_API_KEY = 'f2439f60dfe99d'  # Replace with your ipinfo API key
 
-def fetch_news(api_key, query=None, category=None, country='us'):
+def fetch_news(api_key, query=None, category=None, country='world'):
     if query:
         url = f'https://newsapi.org/v2/everything?q={query}&apiKey={api_key}'
     else:
@@ -91,25 +91,18 @@ else:
 if news_data['status'] == 'ok':
     articles = news_data['articles']
 
-    # Create tabs for each article
-    article_titles = [article['title'] for article in articles]
-    tabs = st.tabs(article_titles)
+    # Display articles in a grid layout
+    cols = st.columns(3)
+    for idx, article in enumerate(articles):
+        with cols[idx % 3]:
+            st.markdown("---")
+            st.subheader(article['title'])
+            if article.get('urlToImage'):
+                st.image(article['urlToImage'], use_column_width=True)
+            st.write(article['description'])
+            st.markdown(f"[Read more]({article['url']})")
 
-    for i, article in enumerate(articles):
-        with tabs[i]:
-            title = article['title']
-            description = article['description']
-            content = article.get('content', description)
-            image_url = article.get('urlToImage')
-            url = article['url']
-            
-            st.subheader(title)
-            if image_url:
-                st.image(image_url, caption=title)
-            
-            st.write(description)
-            st.markdown(f"[Read more]({url})")
-
+            content = article.get('content', article['description'])
             if content:
                 poll_type = determine_poll_type(article)
                 if poll_type == "yes_no":
@@ -121,8 +114,8 @@ if news_data['status'] == 'ok':
 
                 if options:
                     # Create a unique key for each article's voting state
-                    vote_key = f"votes_{title.replace(' ', '_')}"
-                    location_key = f"location_votes_{title.replace(' ', '_')}"
+                    vote_key = f"votes_{article['title'].replace(' ', '_')}"
+                    location_key = f"location_votes_{article['title'].replace(' ', '_')}"
 
                     if vote_key not in st.session_state:
                         st.session_state[vote_key] = {option: 0 for option in options}
@@ -136,9 +129,9 @@ if news_data['status'] == 'ok':
                     question = generate_question(article)
                     st.write(question)
 
-                    voted_option = st.radio("Vote on this news:", hashtag_options, key=title)
+                    voted_option = st.radio("Vote on this news:", hashtag_options, key=article['title'])
 
-                    if st.button("Vote", key=f"vote_{title}"):
+                    if st.button("Vote", key=f"vote_{article['title']}"):
                         if voted_option in votes:
                             votes[voted_option] += 1
                         else:
