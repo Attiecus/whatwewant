@@ -91,92 +91,97 @@ else:
 if news_data['status'] == 'ok':
     articles = news_data['articles']
 
-    for article in articles:
-        title = article['title']
-        description = article['description']
-        content = article.get('content', description)
-        image_url = article.get('urlToImage')
-        url = article['url']
-        
-        st.subheader(title)
-        if image_url:
-            st.image(image_url, caption=title)
-        
-        st.write(description)
-        st.markdown(f"[Read more]({url})")
+    # Create tabs for each article
+    article_titles = [article['title'] for article in articles]
+    tabs = st.tabs(article_titles)
 
-        if content:
-            poll_type = determine_poll_type(article)
-            if poll_type == "yes_no":
-                options = ["Yes", "No"]
-            else:
-                options = extract_relevant_entities(content)
+    for i, article in enumerate(articles):
+        with tabs[i]:
+            title = article['title']
+            description = article['description']
+            content = article.get('content', description)
+            image_url = article.get('urlToImage')
+            url = article['url']
+            
+            st.subheader(title)
+            if image_url:
+                st.image(image_url, caption=title)
+            
+            st.write(description)
+            st.markdown(f"[Read more]({url})")
 
-            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+            if content:
+                poll_type = determine_poll_type(article)
+                if poll_type == "yes_no":
+                    options = ["Yes", "No"]
+                else:
+                    options = extract_relevant_entities(content)
 
-            if options:
-                # Create a unique key for each article's voting state
-                vote_key = f"votes_{title.replace(' ', '_')}"
-                location_key = f"location_votes_{title.replace(' ', '_')}"
+                hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
 
-                if vote_key not in st.session_state:
-                    st.session_state[vote_key] = {option: 0 for option in options}
-                if location_key not in st.session_state:
-                    st.session_state[location_key] = {}
+                if options:
+                    # Create a unique key for each article's voting state
+                    vote_key = f"votes_{title.replace(' ', '_')}"
+                    location_key = f"location_votes_{title.replace(' ', '_')}"
 
-                votes = st.session_state[vote_key]
-                location_votes = st.session_state[location_key]
+                    if vote_key not in st.session_state:
+                        st.session_state[vote_key] = {option: 0 for option in options}
+                    if location_key not in st.session_state:
+                        st.session_state[location_key] = {}
 
-                # AI-generated prompt
-                question = generate_question(article)
-                st.write(question)
+                    votes = st.session_state[vote_key]
+                    location_votes = st.session_state[location_key]
 
-                voted_option = st.radio("Vote on this news:", hashtag_options, key=title)
+                    # AI-generated prompt
+                    question = generate_question(article)
+                    st.write(question)
 
-                if st.button("Vote", key=f"vote_{title}"):
-                    if voted_option in votes:
-                        votes[voted_option] += 1
-                    else:
-                        votes[voted_option] = 1
-                    st.session_state[vote_key] = votes  # Update session state
+                    voted_option = st.radio("Vote on this news:", hashtag_options, key=title)
 
-                    # Get user location
-                    user_location = get_user_location(IPINFO_API_KEY)
-                    country = user_location.get('country', 'Unknown')
+                    if st.button("Vote", key=f"vote_{title}"):
+                        if voted_option in votes:
+                            votes[voted_option] += 1
+                        else:
+                            votes[voted_option] = 1
+                        st.session_state[vote_key] = votes  # Update session state
 
-                    # Update location-based vote count
-                    if country not in location_votes:
-                        location_votes[country] = 1
-                    else:
-                        location_votes[country] += 1
-                    st.session_state[location_key] = location_votes
+                        # Get user location
+                        user_location = get_user_location(IPINFO_API_KEY)
+                        country = user_location.get('country', 'Unknown')
 
-                    st.success("Thank you for voting!")
+                        # Update location-based vote count
+                        if country not in location_votes:
+                            location_votes[country] = 1
+                        else:
+                            location_votes[country] += 1
+                        st.session_state[location_key] = location_votes
 
-                # Display poll results if the user has voted
-                if any(count > 0 for count in votes.values()):
-                    st.write("Current Poll Results:")
-                    total_votes = sum(votes.values())
-                    for option, count in votes.items():
-                        percentage = count / total_votes * 100 if total_votes != 0 else 0
-                        st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
-                        st.progress(percentage / 100)
+                        st.success("Thank you for voting!")
+
+                    # Display poll results if the user has voted
+                    if any(count > 0 for count in votes.values()):
+                        st.write("Current Poll Results:")
+                        total_votes = sum(votes.values())
+                        for option, count in votes.items():
+                            percentage = count / total_votes * 100 if total_votes != 0 else 0
+                            st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
+                            st.progress(percentage / 100)
+                        st.write("---")
+
+                        # Display location-based poll results
+                        st.write("Votes by Country:")
+                        for country, count in location_votes.items():
+                            st.write(f"{country}: {count} votes")
+
+                        # Plot the world map with points
+                        st.write("World Map of Votes:")
+                        map_data = plot_world_map(location_votes)
+                        st.map(map_data)
                     st.write("---")
 
-                    # Display location-based poll results
-                    st.write("Votes by Country:")
-                    for country, count in location_votes.items():
-                        st.write(f"{country}: {count} votes")
-
-                    # Plot the world map with points
-                    st.write("World Map of Votes:")
-                    map_data = plot_world_map(location_votes)
-                    st.map(map_data)
-                st.write("---")
-
+                else:
+                    st.write("No relevant entities found for voting.")
             else:
-                st.write("No relevant entities found for voting.")
-        else:
-            st.write("No content available for deeper analysis.")
+                st.write("No content available for deeper analysis.")
 else:
     st.error("Failed to fetch trending news.")
