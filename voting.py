@@ -137,48 +137,38 @@ user_query = st.sidebar.text_input("Search for articles containing:", key="searc
 
 show_voting_section = toggle_voting_section()
 
+
 if show_voting_section:
     if feed.entries:
         # Determine the number of columns based on the number of entries
         num_cols = min(len(feed.entries), 3)
         cols = st.columns(num_cols)
-        rss_url = 'http://feeds.bbci.co.uk/news/rss.xml'
-        feed = feedparser.parse(rss_url)
 
-        num_cols = 3  # Define the number of columns for the layout
-        cols = st.columns(num_cols)  # Create columns in Streamlit
-
-        # Iterate over each entry in the feed
         for idx, entry in enumerate(feed.entries):
             col = cols[idx % num_cols]  # Select the column based on index
 
             with col:
-                article_url = entry.link  # URL of the article
-                content, image = fetch_article_content(article_url)  # Fetch the article content and image
+                with st.container():  # Use a container to avoid overlap
+                    article_url = entry.link  # URL of the article
+                    content, image = fetch_article_content(article_url)  # Fetch the article content and image
 
-                if image:
-                    st.image(image, width=500)
+                    if image:
+                        st.image(image, width=500)
 
-                # Display the article title as a link
-                st.markdown(f"### [{entry.title}]({entry.link})")
+                    # Display the article title as a link
+                    st.markdown(f"### [{entry.title}]({entry.link})")
 
-                # Show the article summary
-                st.write(entry.summary)
+                    # Show the article summary
+                    st.write(entry.summary)
 
-                # Provide a 'Read more' link
-                st.markdown(f"[Read more...]({entry.link})", unsafe_allow_html=True)
+                    # Provide a 'Read more' link
+                    st.markdown(f"[Read more...]({entry.link})", unsafe_allow_html=True)
 
-                # Generate and display social media sharing buttons
-                
-
-
-                # Add a separator for visual separation
-                st.markdown("---")
-                if content:
-                    poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
-                    if poll_type == "yes_no":
-                        options = ["Yes", "No"]
-                    else:
+                    if content:
+                        poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
+                        if poll_type == "yes_no":
+                            options = ["Yes", "No"]
+                        else:
                             # Extract relevant entities from content
                             relevant_entities = extract_relevant_entities(content)
 
@@ -191,76 +181,77 @@ if show_voting_section:
                             # Limit the number of options to 5-6
                             options = [entity[0] for entity in sorted_entities[:5]]
 
-                    # Allow users to input custom options
-                    custom_option = st.text_input(f"Enter a custom option for article {idx}:")  # Unique key for each input
-                    if custom_option:
-                        options.append(custom_option)
+                        # Allow users to input custom options
+                        custom_option = st.text_input(f"Enter a custom option for article {idx}:")  # Unique key for each input
+                        if custom_option:
+                            options.append(custom_option)
 
-                    hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
-                    create_social_media_share_buttons(article_url, entry.title, hashtag_options)
-                    if options:
-                        # Create a unique key for each article's voting state
-                        vote_key = f"votes_{idx}"
-                        location_key = f"location_votes_{idx}"
+                        hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+                        create_social_media_share_buttons(article_url, entry.title, hashtag_options)
 
-                        if vote_key not in st.session_state:
-                            st.session_state[vote_key] = {option: 0 for option in options}
-                        if location_key not in st.session_state:
-                            st.session_state[location_key] = {}
+                        if options:
+                            # Create a unique key for each article's voting state
+                            vote_key = f"votes_{idx}"
+                            location_key = f"location_votes_{idx}"
 
-                        votes = st.session_state[vote_key]
-                        location_votes = st.session_state[location_key]
+                            if vote_key not in st.session_state:
+                                st.session_state[vote_key] = {option: 0 for option in options}
+                            if location_key not in st.session_state:
+                                st.session_state[location_key] = {}
 
-                        # AI-generated prompt
-                        question = generate_question({'title': entry.title, 'description': entry.summary})
-                        st.write(question)
+                            votes = st.session_state[vote_key]
+                            location_votes = st.session_state[location_key]
 
-                        voted_option = st.radio("Vote on this news:", hashtag_options, key=f"radio_{idx}")
+                            # AI-generated prompt
+                            question = generate_question({'title': entry.title, 'description': entry.summary})
+                            st.write(question)
 
-                        if st.button("Vote", key=f"vote_{idx}"):
-                            if voted_option in votes:
-                                votes[voted_option] += 1
-                            else:
-                                votes[voted_option] = 1
-                            st.session_state[vote_key] = votes  # Update session state
+                            voted_option = st.radio("Vote on this news:", hashtag_options, key=f"radio_{idx}")
 
-                            # Get user location
-                            user_location = get_user_location(IPINFO_API_KEY)
-                            country = user_location.get('country', 'Unknown')
+                            if st.button("Vote", key=f"vote_{idx}"):
+                                if voted_option in votes:
+                                    votes[voted_option] += 1
+                                else:
+                                    votes[voted_option] = 1
+                                st.session_state[vote_key] = votes  # Update session state
 
-                            # Update location-based vote count
-                            if country not in location_votes:
-                                location_votes[country] = 1
-                            else:
-                                location_votes[country] += 1
-                            st.session_state[location_key] = location_votes
+                                # Get user location
+                                user_location = get_user_location(IPINFO_API_KEY)
+                                country = user_location.get('country', 'Unknown')
 
-                            st.success("Thank you for voting!")
+                                # Update location-based vote count
+                                if country not in location_votes:
+                                    location_votes[country] = 1
+                                else:
+                                    location_votes[country] += 1
+                                st.session_state[location_key] = location_votes
 
-                        # Display poll results if the user has voted
-                        if any(count > 0 for count in votes.values()):
-                            st.write("Current Poll Results:")
-                            total_votes = sum(votes.values())
-                            for option, count in votes.items():
-                                percentage = count / total_votes * 100 if total_votes != 0 else 0
-                                st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
-                                st.progress(percentage / 100)
+                                st.success("Thank you for voting!")
+
+                            # Display poll results if the user has voted
+                            if any(count > 0 for count in votes.values()):
+                                st.write("Current Poll Results:")
+                                total_votes = sum(votes.values())
+                                for option, count in votes.items():
+                                    percentage = count / total_votes * 100 if total_votes != 0 else 0
+                                    st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
+                                    st.progress(percentage / 100)
+                                st.write("---")
+
+                                # Display location-based poll results
+                                st.write("Votes by Country:")
+                                for country, count in location_votes.items():
+                                    st.write(f"{country}: {count} votes")
+
+                                # Plot the world map with points
+                                st.write("World Map of Votes:")
+                                map_data = plot_world_map(location_votes)
+                                st.map(map_data)
                             st.write("---")
 
-                            # Display location-based poll results
-                            st.write("Votes by Country:")
-                            for country, count in location_votes.items():
-                                st.write(f"{country}: {count} votes")
-
-                            # Plot the world map with points
-                            st.write("World Map of Votes:")
-                            map_data = plot_world_map(location_votes)
-                            st.map(map_data)
-                        st.write("---")
-
+                        else:
+                            st.write("No relevant entities found for voting.")
                     else:
-                        st.write("No relevant entities found for voting.")
-                else:
-                    st.write("No content available for deeper analysis.")
+                        st.write("No content available for deeper analysis.")
     else:
         st.error("Failed to fetch trending news.")
