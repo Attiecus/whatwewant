@@ -96,6 +96,27 @@ st.title("WELCOME TO WHAT WE WANT!")
 st.header(f"HAVE YOUR SAY")
 # User input for filtering articles by keyword
 user_query = st.sidebar.text_input("Search for articles containing:")
+def create_social_media_share_buttons(article_title, hashtags):
+    website_url = "https://whatwewant.streamlit.app/"
+    twitter_url = f"https://twitter.com/intent/tweet?url={website_url}&text={article_title}&hashtags={hashtags}"
+    facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
+    linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
+
+    buttons_html = f"""
+    <div>
+        <a href="{twitter_url}" target="_blank">
+            <img src="https://img.icons8.com/fluent/48/000000/twitter.png" />
+        </a>
+        <a href="{facebook_url}" target="_blank">
+            <img src="https://img.icons8.com/fluent/48/000000/facebook-new.png" />
+        </a>
+        <a href="{linkedin_url}" target="_blank">
+            <img src="https://img.icons8.com/fluent/48/000000/linkedin.png" />
+        </a>
+    </div>
+    """
+    st.markdown(buttons_html, unsafe_allow_html=True)
+
 
 
 
@@ -119,6 +140,7 @@ if feed.entries:
             st.subheader(entry.title)
             st.write(entry.summary, width=500)
             st.markdown(f"[Read more]({entry.link})")
+            create_social_media_share_buttons(article_url, entry.title) 
 
             content = entry.summary
             if content:
@@ -201,7 +223,6 @@ if feed.entries:
                 st.write("No content available for deeper analysis.")
 else:
     st.error("Failed to fetch trending news.")
-
 
 
 
