@@ -94,12 +94,11 @@ def create_social_media_share_buttons(article_title, votes, options):
     twitter_url = f"https://twitter.com/intent/tweet?url={article_title}&text={website_url}&hashtags={votes}&options={options_str}"
     facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
     linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
-    instagram_url = f"https://www.instagram.com/?url={website_url}"
 
     buttons_html = f"""
     <div style="display: flex; gap: 10px;">
         <a href="{twitter_url}" target="_blank">
-            <img src="https://th.bing.com/th/id/OIP.OiRP0Wt_nlImTXz5w45aRQHaHa?rs=1&pid=ImgDetMain" alt="X logo" style="width: 48px; height: 48px;"/>
+            <img src="https://img.icons8.com/ios-filled/50/000000/x-logo.png" alt="X logo" style="width: 48px; height: 48px;"/>
         </a>
         <a href="{facebook_url}" target="_blank">
             <img src="https://img.icons8.com/fluent/48/000000/facebook-new.png" alt="Facebook logo" style="width: 48px; height: 48px;"/>
@@ -107,7 +106,7 @@ def create_social_media_share_buttons(article_title, votes, options):
         <a href="{linkedin_url}" target="_blank">
             <img src="https://img.icons8.com/fluent/48/000000/linkedin.png" alt="LinkedIn logo" style="width: 48px; height: 48px;"/>
         </a>
-        <a href="{instagram_url}" target="_blank">
+        <a href="#" onclick="navigator.clipboard.writeText('{website_url}'); alert('Link copied to clipboard! Open Instagram to create a story.');">
             <img src="https://img.icons8.com/fluent/48/000000/instagram-new.png" alt="Instagram logo" style="width: 48px; height: 48px;"/>
         </a>
     </div>
