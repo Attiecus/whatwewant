@@ -94,11 +94,12 @@ def create_social_media_share_buttons(article_title, votes, options):
     twitter_url = f"https://twitter.com/intent/tweet?url={article_title}&text={website_url}&hashtags={votes}&options={options_str}"
     facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
     linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
+    instagram_url = f"https://www.instagram.com/?url={website_url}"
 
     buttons_html = f"""
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+    <div style="display: flex; gap: 10px;">
         <a href="{twitter_url}" target="_blank">
-            <img src=https://th.bing.com/th/id/OIP.NLIxVjyHxWeC_Kl-QJRoTwHaD8?w=600&h=319&rs=1&pid=ImgDetMain" style="width: 48px; height: 48px;"/>
+            <img src="https://th.bing.com/th/id/OIP.OiRP0Wt_nlImTXz5w45aRQHaHa?rs=1&pid=ImgDetMain" alt="X logo" style="width: 48px; height: 48px;"/>
         </a>
         <a href="{facebook_url}" target="_blank">
             <img src="https://img.icons8.com/fluent/48/000000/facebook-new.png" alt="Facebook logo" style="width: 48px; height: 48px;"/>
@@ -106,7 +107,7 @@ def create_social_media_share_buttons(article_title, votes, options):
         <a href="{linkedin_url}" target="_blank">
             <img src="https://img.icons8.com/fluent/48/000000/linkedin.png" alt="LinkedIn logo" style="width: 48px; height: 48px;"/>
         </a>
-        <a href="#" onclick="navigator.clipboard.writeText('{website_url}'); alert('Link copied to clipboard! Open Instagram to create a story.');">
+        <a href="{instagram_url}" target="_blank">
             <img src="https://img.icons8.com/fluent/48/000000/instagram-new.png" alt="Instagram logo" style="width: 48px; height: 48px;"/>
         </a>
     </div>
@@ -119,6 +120,20 @@ def toggle_voting_section():
         st.session_state['show_voting_section'] = True
     show_voting_section = st.session_state['show_voting_section']
     return st.checkbox("Show/Hide Voting Section", value=show_voting_section, key='toggle_voting')
+
+# Set custom CSS for changing the font of the title
+css = """
+<style>
+    h1 {
+        font-family: 'Times New Roman', Times, serif; /* Set the font for h1 elements */
+        font-weight: bold; /* Optional: Make it bold */
+        font-size: 4em;  # Increase font size
+        text-align: center;
+    }
+</style>
+"""
+
+st.markdown(css, unsafe_allow_html=True)  # Apply the custom CSS
 
 # CSS to improve mobile responsiveness
 st.markdown("""
@@ -134,16 +149,11 @@ st.markdown("""
                 width: 100% !important;
                 overflow-x: hidden;
             }
-            .stMarkdown div {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 10px;
-            }
         }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("WELCOME TO WHAT WE WANT!")
+st.title("VOICES")
 st.header(f"HAVE YOUR SAY")
 
 # User input for filtering articles by keyword
@@ -156,6 +166,22 @@ else:
     feed = feedparser.parse('http://feeds.bbci.co.uk/news/rss.xml')
 
 show_voting_section = toggle_voting_section()
+# Sidebar for saved articles
+with st.sidebar:
+    st.header("Saved Articles")
+    if 'saved_posts' not in st.session_state:
+        st.session_state.saved_posts = []
+    if st.session_state.saved_posts:
+        for post in st.session_state.saved_posts:
+            if st.button(f"Remove {post['title']}", key=post['link']):
+                # Remove the article from saved posts
+                st.session_state.saved_posts = [p for p in st.session_state.saved_posts if p['link'] != post['link']]
+                st.experimental_rerun()
+            st.markdown(f"### [{post['title']}]({post['link']})")
+            st.markdown(f"{post['summary']}")
+    else:
+        st.write("No articles saved.")
+
 if show_voting_section:
     if feed.entries:
         num_cols = min(len(feed.entries), 3)
@@ -163,7 +189,6 @@ if show_voting_section:
 
         for idx, entry in enumerate(feed.entries):
             col = cols[idx % num_cols]
-
             with col:
                 with st.container():
                     article_url = entry.link
@@ -172,9 +197,20 @@ if show_voting_section:
                     if image:
                         st.image(image, width=500)
 
-                    st.markdown(f"### [{entry.title}]({entry.link})")
-                    st.write(entry.summary)
-                    st.markdown(f"[Read more...]({entry.link})", unsafe_allow_html=True)
+                    # Styling for the card
+                    st.markdown(
+                        f"""
+                        <div style="border: 1px solid #ccc; border-radius: 10px; padding: 20px; margin: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); background-color: #f9f9f9; transition: transform 0.3s ease-in-out;">
+                            <h3><a href="{entry.link}" style="color: #000000; text-decoration: none;">{entry.title}</a></h3>
+                            <p>{entry.summary}</p>
+                            <div style="margin-top: 10px;">
+                                <button style="margin-right: 10px;">👍 Like</button>
+                                <button>👎 Dislike</button>
+                            </div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True
+                    )
 
                     if content:
                         poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
@@ -208,16 +244,23 @@ if show_voting_section:
                             question = generate_question({'title': entry.title, 'description': entry.summary})
                             st.write(question)
 
-                            voted_option = st.radio("Vote on this news:", hashtag_options, key=f"radio_{idx}")
+                            voted_option = st.radio("UPROAR on this news:", hashtag_options, key=f"radio_{idx}")
 
-                            if st.button("Vote", key=f"vote_{idx}"):
+                            if st.button("UPROAR", key=f"vote_{idx}"):
                                 if voted_option in votes:
                                     votes[voted_option] += 1
                                 else:
                                     votes[voted_option] = 1
                                 st.session_state[vote_key] = votes
 
-                              
+                                user_location = get_user_location(IPINFO_API_KEY)
+                                country = user_location.get('country', 'Unknown')
+
+                                if country not in location_votes:
+                                    location_votes[country] = 1
+                                else:
+                                    location_votes[country] += 1
+                                st.session_state[location_key] = location_votes
 
                                 st.success("Thank you for voting!")
 
@@ -230,7 +273,14 @@ if show_voting_section:
                                     st.progress(percentage / 100)
                                 st.write("---")
 
-                              
+                                st.write("Votes by Country:")
+                                for country, count in location_votes.items():
+                                    st.write(f"{country}: {count} votes")
+
+                                st.write("World Map of Votes:")
+                                map_data = plot_world_map(location_votes)
+                                st.map(map_data)
+                            st.write("---")
 
                         else:
                             st.write("No relevant entities found for voting.")
