@@ -230,14 +230,7 @@ if show_voting_section:
                                     st.progress(percentage / 100)
                                 st.write("---")
 
-                                st.write("Votes by Country:")
-                                for country, count in location_votes.items():
-                                    st.write(f"{country}: {count} votes")
-
-                                st.write("World Map of Votes:")
-                                map_data = plot_world_map(location_votes)
-                                st.map(map_data)
-                            st.write("---")
+                              
 
                         else:
                             st.write("No relevant entities found for voting.")
