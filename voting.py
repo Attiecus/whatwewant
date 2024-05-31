@@ -217,14 +217,7 @@ if show_voting_section:
                                     votes[voted_option] = 1
                                 st.session_state[vote_key] = votes
 
-                                user_location = get_user_location(IPINFO_API_KEY)
-                                country = user_location.get('country', 'Unknown')
-
-                                if country not in location_votes:
-                                    location_votes[country] = 1
-                                else:
-                                    location_votes[country] += 1
-                                st.session_state[location_key] = location_votes
+                              
 
                                 st.success("Thank you for voting!")
 
