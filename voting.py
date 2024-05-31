@@ -8,7 +8,7 @@ import feedparser
 # Set Streamlit page configuration
 st.set_page_config(layout='wide')
 IPINFO_API_KEY = 'f2439f60dfe99d'
-# Function to fetch article content and image
+
 # Function to fetch article content and image
 def fetch_article_content(url):
     response = requests.get(url)
@@ -17,7 +17,7 @@ def fetch_article_content(url):
     # Extract content
     paragraphs = soup.find_all('p')
     if paragraphs:
-        content = ' '.join([para.get_text() for para in paragraphs])  # Join all paragraphs
+        content = ' '.join([para.get_text() for para in paragraphs])
     else:
         content = 'Content not available'
 
@@ -43,9 +43,9 @@ def extract_relevant_entities(text):
     doc = nlp(text)
     entities = []
     for ent in doc.ents:
-        if ent.label_ in ['PERSON', 'ORG', 'GPE']:  # Extended to include geopolitical entities
+        if ent.label_ in ['PERSON', 'ORG', 'GPE']:
             entities.append(ent.text)
-    return list(set(entities))  # Use set to remove duplicates
+    return list(set(entities))
 
 # Function to generate a question based on the article
 def generate_question(article):
@@ -87,17 +87,10 @@ def plot_world_map(location_votes):
                 data.append({'lat': lat, 'lon': lon})
     return data
 
-# Fetch RSS feed
-rss_url = 'http://feeds.bbci.co.uk/news/rss.xml'
-feed = feedparser.parse(rss_url)
-
-# Display articles in Streamlit
-
-# User input for filtering articles by keyword
-user_query = st.sidebar.text_input("Search for articles containing:")
+# Function to create social media share buttons
 def create_social_media_share_buttons(article_title, votes, options):
     website_url = "https://whatwewant.streamlit.app/"
-    options_str = "%20".join(options)  # Convert options list to URL-friendly string
+    options_str = "%20".join(options)
     twitter_url = f"https://twitter.com/intent/tweet?url={article_title}&text={website_url}&hashtags={votes}&options={options_str}"
     facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
     linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
@@ -120,48 +113,56 @@ def create_social_media_share_buttons(article_title, votes, options):
 # Function to toggle visibility of voting section and votes
 def toggle_voting_section():
     if 'show_voting_section' not in st.session_state:
-        st.session_state['show_voting_section'] = True  # Default visibility
+        st.session_state['show_voting_section'] = True
     show_voting_section = st.session_state['show_voting_section']
     return st.checkbox("Show/Hide Voting Section", value=show_voting_section, key='toggle_voting')
 
-# Display articles in Streamlit
+# CSS to improve mobile responsiveness
+st.markdown("""
+    <style>
+        @media (max-width: 768px) {
+            .css-18e3th9 {
+                flex-direction: column;
+            }
+            .stButton button {
+                width: 100%;
+            }
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("WELCOME TO WHAT WE WANT!")
 st.header(f"HAVE YOUR SAY")
-# User input for filtering articles by keyword
+
 # User input for filtering articles by keyword
 user_query = st.sidebar.text_input("Search for articles containing:", key="search_input")
 
-
-# Inject the CSS into the Streamlit app
-
+# Reload Button
+if st.button("Reload Feed"):
+    feed = feedparser.parse('http://feeds.bbci.co.uk/news/rss.xml')
+else:
+    feed = feedparser.parse('http://feeds.bbci.co.uk/news/rss.xml')
 
 show_voting_section = toggle_voting_section()
 
-
 if show_voting_section:
     if feed.entries:
-        # Determine the number of columns based on the number of entries
         num_cols = min(len(feed.entries), 3)
         cols = st.columns(num_cols)
 
         for idx, entry in enumerate(feed.entries):
-            col = cols[idx % num_cols]  # Select the column based on index
+            col = cols[idx % num_cols]
 
             with col:
-                with st.container():  # Use a container to avoid overlap
-                    article_url = entry.link  # URL of the article
-                    content, image = fetch_article_content(article_url)  # Fetch the article content and image
+                with st.container():
+                    article_url = entry.link
+                    content, image = fetch_article_content(article_url)
 
                     if image:
                         st.image(image, width=500)
 
-                    # Display the article title as a link
                     st.markdown(f"### [{entry.title}]({entry.link})")
-
-                    # Show the article summary
                     st.write(entry.summary)
-
-                    # Provide a 'Read more' link
                     st.markdown(f"[Read more...]({entry.link})", unsafe_allow_html=True)
 
                     if content:
@@ -169,20 +170,12 @@ if show_voting_section:
                         if poll_type == "yes_no":
                             options = ["Yes", "No"]
                         else:
-                            # Extract relevant entities from content
                             relevant_entities = extract_relevant_entities(content)
-
-                            # Count the frequency of each entity
                             entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
-
-                            # Sort entities based on their frequency
                             sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
-
-                            # Limit the number of options to 5-6
                             options = [entity[0] for entity in sorted_entities[:5]]
 
-                        # Allow users to input custom options
-                        custom_option = st.text_input(f"Enter a custom option for article {idx}:")  # Unique key for each input
+                        custom_option = st.text_input(f"Enter a custom option for article {idx}:")
                         if custom_option:
                             options.append(custom_option)
 
@@ -190,7 +183,6 @@ if show_voting_section:
                         create_social_media_share_buttons(article_url, entry.title, hashtag_options)
 
                         if options:
-                            # Create a unique key for each article's voting state
                             vote_key = f"votes_{idx}"
                             location_key = f"location_votes_{idx}"
 
@@ -202,7 +194,6 @@ if show_voting_section:
                             votes = st.session_state[vote_key]
                             location_votes = st.session_state[location_key]
 
-                            # AI-generated prompt
                             question = generate_question({'title': entry.title, 'description': entry.summary})
                             st.write(question)
 
@@ -213,13 +204,11 @@ if show_voting_section:
                                     votes[voted_option] += 1
                                 else:
                                     votes[voted_option] = 1
-                                st.session_state[vote_key] = votes  # Update session state
+                                st.session_state[vote_key] = votes
 
-                                # Get user location
                                 user_location = get_user_location(IPINFO_API_KEY)
                                 country = user_location.get('country', 'Unknown')
 
-                                # Update location-based vote count
                                 if country not in location_votes:
                                     location_votes[country] = 1
                                 else:
@@ -228,7 +217,6 @@ if show_voting_section:
 
                                 st.success("Thank you for voting!")
 
-                            # Display poll results if the user has voted
                             if any(count > 0 for count in votes.values()):
                                 st.write("Current Poll Results:")
                                 total_votes = sum(votes.values())
@@ -238,12 +226,10 @@ if show_voting_section:
                                     st.progress(percentage / 100)
                                 st.write("---")
 
-                                # Display location-based poll results
                                 st.write("Votes by Country:")
                                 for country, count in location_votes.items():
                                     st.write(f"{country}: {count} votes")
 
-                                # Plot the world map with points
                                 st.write("World Map of Votes:")
                                 map_data = plot_world_map(location_votes)
                                 st.map(map_data)
