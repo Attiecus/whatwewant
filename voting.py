@@ -122,10 +122,14 @@ st.markdown("""
     <style>
         @media (max-width: 768px) {
             .css-18e3th9 {
-                flex-direction: column;
+                flex-direction: column !important;
             }
             .stButton button {
                 width: 100%;
+            }
+            .element-container {
+                width: 100% !important;
+                overflow-x: hidden;
             }
         }
     </style>
