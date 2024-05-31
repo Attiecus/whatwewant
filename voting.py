@@ -98,7 +98,7 @@ def create_social_media_share_buttons(article_title, votes, options):
     buttons_html = f"""
     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
         <a href="{twitter_url}" target="_blank">
-            <img src="https://img.icons8.com/ios-filled/50/000000/x-logo.png" alt="X logo" style="width: 48px; height: 48px;"/>
+            <img src=https://th.bing.com/th/id/OIP.NLIxVjyHxWeC_Kl-QJRoTwHaD8?w=600&h=319&rs=1&pid=ImgDetMain" style="width: 48px; height: 48px;"/>
         </a>
         <a href="{facebook_url}" target="_blank">
             <img src="https://img.icons8.com/fluent/48/000000/facebook-new.png" alt="Facebook logo" style="width: 48px; height: 48px;"/>
