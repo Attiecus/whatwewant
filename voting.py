@@ -4,8 +4,6 @@ import spacy
 from opencage.geocoder import OpenCageGeocode
 from bs4 import BeautifulSoup
 import feedparser
-import aiohttp
-import asyncio
 
 # Set Streamlit page configuration
 st.set_page_config(layout='wide')
@@ -15,32 +13,26 @@ IPINFO_API_KEY = 'f2439f60dfe99d'
 def load_spacy_model():
     return spacy.load("en_core_web_sm")
 
-# Function to fetch article content and image using asynchronous requests
-async def fetch_article_content_async(session, url):
-    async with session.get(url) as response:
-        content = await response.read()
-        soup = BeautifulSoup(content, 'lxml')  # Use lxml for faster parsing
+# Function to fetch article content and image using synchronous requests
+def fetch_article_content(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'lxml')  # Use lxml for faster parsing
 
-        # Extract content
-        paragraphs = soup.find_all('p')
-        content = ' '.join([para.get_text() for para in paragraphs]) if paragraphs else 'Content not available'
+    # Extract content
+    paragraphs = soup.find_all('p')
+    content = ' '.join([para.get_text() for para in paragraphs]) if paragraphs else 'Content not available'
 
-        # Extract image
-        image = None
-        img_tag = soup.find('meta', property='og:image')
-        if img_tag and img_tag['content']:
-            image = img_tag['content']
-        else:
-            img_tag = soup.find('img')
-            if img_tag and img_tag['src']:
-                image = img_tag['src']
+    # Extract image
+    image = None
+    img_tag = soup.find('meta', property='og:image')
+    if img_tag and img_tag['content']:
+        image = img_tag['content']
+    else:
+        img_tag = soup.find('img')
+        if img_tag and img_tag['src']:
+            image = img_tag['src']
 
-        return content, image
-
-async def fetch_articles(urls):
-    async with aiohttp.ClientSession() as session:
-        tasks = [fetch_article_content_async(session, url) for url in urls]
-        return await asyncio.gather(*tasks)
+    return content, image
 
 # OpenCage API key
 OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenCage API key
@@ -231,7 +223,6 @@ news_sources = {
     "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
     "RTE": "https://www.rte.ie/rss/news.xml",
     "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
-    #"Times of India": "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms",
     "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
 }
 
@@ -267,8 +258,7 @@ if show_voting_section:
         num_cols = min(len(filtered_entries), 3)
         cols = st.columns(num_cols)
 
-        urls = [entry.link for entry in filtered_entries]
-        articles = asyncio.run(fetch_articles(urls))
+        articles = [fetch_article_content(entry.link) for entry in filtered_entries]
 
         for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
             col = cols[idx % num_cols]
@@ -299,8 +289,6 @@ if show_voting_section:
 
                     card_html += "</div>"
                     st.markdown(card_html, unsafe_allow_html=True)
-
-                
 
                     if st.button("Save", key=f"save_{idx}", on_click=lambda url=article_url: st.session_state.saved_posts.append({'title': entry.title, 'summary': entry.summary, 'link': url})):
                         st.success(f"Saved {entry.title}")
