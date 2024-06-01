@@ -4,6 +4,8 @@ import spacy
 from opencage.geocoder import OpenCageGeocode
 from bs4 import BeautifulSoup
 import feedparser
+import aiohttp
+import asyncio
 
 # Set Streamlit page configuration
 st.set_page_config(layout='wide')
@@ -13,26 +15,32 @@ IPINFO_API_KEY = 'f2439f60dfe99d'
 def load_spacy_model():
     return spacy.load("en_core_web_sm")
 
-# Function to fetch article content and image using synchronous requests
-def fetch_article_content(url):
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'lxml')  # Use lxml for faster parsing
+# Function to fetch article content and image using asynchronous requests
+async def fetch_article_content_async(session, url):
+    async with session.get(url) as response:
+        content = await response.read()
+        soup = BeautifulSoup(content, 'lxml')  # Use lxml for faster parsing
 
-    # Extract content
-    paragraphs = soup.find_all('p')
-    content = ' '.join([para.get_text() for para in paragraphs]) if paragraphs else 'Content not available'
+        # Extract content
+        paragraphs = soup.find_all('p')
+        content = ' '.join([para.get_text() for para in paragraphs]) if paragraphs else 'Content not available'
 
-    # Extract image
-    image = None
-    img_tag = soup.find('meta', property='og:image')
-    if img_tag and img_tag['content']:
-        image = img_tag['content']
-    else:
-        img_tag = soup.find('img')
-        if img_tag and img_tag['src']:
-            image = img_tag['src']
+        # Extract image
+        image = None
+        img_tag = soup.find('meta', property='og:image')
+        if img_tag and img_tag['content']:
+            image = img_tag['content']
+        else:
+            img_tag = soup.find('img')
+            if img_tag and img_tag['src']:
+                image = img_tag['src']
 
-    return content, image
+        return content, image
+
+async def fetch_articles(urls):
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_article_content_async(session, url) for url in urls]
+        return await asyncio.gather(*tasks)
 
 # OpenCage API key
 OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenCage API key
@@ -213,8 +221,6 @@ st.title("- VOICES -")
 st.header("HAVE YOUR SAY")
 
 # Add category section
-categories = ["All", "Politics", "Technology", "Sports", "Entertainment", "Health"]
-selected_category = st.selectbox("Select Category", categories)
 
 # User input for searching articles
 user_query = st.text_input("Search for articles containing:")
@@ -223,6 +229,7 @@ news_sources = {
     "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
     "RTE": "https://www.rte.ie/rss/news.xml",
     "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+    #"Times of India": "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms",
     "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
 }
 
@@ -237,14 +244,15 @@ else:
 show_voting_section = toggle_voting_section()
 
 # Sidebar for saved articles
+# Sidebar for saved articles
 with st.sidebar:
     st.header("Saved Articles")
     if 'saved_posts' not in st.session_state:
         st.session_state.saved_posts = []
     saved_posts = st.session_state.saved_posts
     if saved_posts:
-        for post in saved_posts:
-            if st.button(f"Remove {post['title']}", key=post['link']):
+        for idx, post in enumerate(saved_posts):
+            if st.button(f"Remove {post['title']}", key=f"remove_{idx}"):
                 st.session_state.saved_posts = [p for p in saved_posts if p['link'] != post['link']]
                 st.experimental_rerun()
             st.markdown(f"### [{post['title']}]({post['link']})")
@@ -252,28 +260,22 @@ with st.sidebar:
     else:
         st.write("No articles saved.")
 
+# Main section
+# Assuming `filtered_entries` and `articles` are defined and populated earlier in the script
 if show_voting_section:
     filtered_entries = search_articles(feed, user_query)
     if filtered_entries:
         num_cols = min(len(filtered_entries), 3)
         cols = st.columns(num_cols)
 
-        articles = [fetch_article_content(entry.link) for entry in filtered_entries]
+        urls = [entry.link for entry in filtered_entries]
+        articles = asyncio.run(fetch_articles(urls))
 
         for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
             col = cols[idx % num_cols]
             with col:
                 with st.container():
                     article_url = entry.link
-
-                    # Initialize like counter
-                    like_key = f"like_{idx}"
-                    if like_key not in st.session_state:
-                        st.session_state[like_key] = 0
-
-                    # Increment function
-                    def increment_like():
-                        st.session_state[like_key] += 1
 
                     # Styling for the card
                     card_color = "#444444" if dark_mode else "#f9f9f9"
@@ -290,8 +292,14 @@ if show_voting_section:
                     card_html += "</div>"
                     st.markdown(card_html, unsafe_allow_html=True)
 
-                    if st.button("Save", key=f"save_{idx}", on_click=lambda url=article_url: st.session_state.saved_posts.append({'title': entry.title, 'summary': entry.summary, 'link': url})):
+                    if st.button("Save", key=f"save_{idx}"):
+                        st.session_state.saved_posts.append({
+                            'title': entry.title,
+                            'summary': entry.summary,
+                            'link': article_url
+                        })
                         st.success(f"Saved {entry.title}")
+                        st.experimental_rerun()
 
                     if content:
                         poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
