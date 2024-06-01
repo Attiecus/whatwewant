@@ -121,37 +121,77 @@ def toggle_voting_section():
     show_voting_section = st.session_state['show_voting_section']
     return st.checkbox("Show/Hide Voting Section", value=show_voting_section, key='toggle_voting')
 
-# Set custom CSS for changing the font of the title
-css = """
-<style>
-    h1 {
-        font-family: 'Times New Roman', Times, serif; /* Set the font for h1 elements */
-        font-weight: bold; /* Optional: Make it bold */
-        font-size: 4em;  # Increase font size
-        text-align: center;
-    }
-</style>
-"""
+# Function to toggle dark/light mode
+def toggle_dark_light_mode():
+    if 'dark_mode' not in st.session_state:
+        st.session_state['dark_mode'] = False
+    st.session_state['dark_mode'] = st.sidebar.checkbox("Dark Mode", value=st.session_state['dark_mode'])
+    return st.session_state['dark_mode']
 
-st.markdown(css, unsafe_allow_html=True)  # Apply the custom CSS
-
-# CSS to improve mobile responsiveness
-st.markdown("""
+# Set custom CSS for changing the font of the title and dark mode
+def set_custom_css(dark_mode):
+    css = """
     <style>
-        @media (max-width: 768px) {
-            .css-18e3th9 {
-                flex-direction: column !important;
-            }
-            .stButton button {
-                width: 100%;
-            }
-            .element-container {
-                width: 100% !important;
-                overflow-x: hidden;
-            }
+        h1 {
+            font-family: 'Times New Roman', Times, serif;
+            font-weight: bold;
+            font-size: 4em;
+            text-align: center;
         }
     </style>
-""", unsafe_allow_html=True)
+    """
+    dark_css = """
+    <style>
+        body {
+            background-color: #2e2e2e;
+            color: #ffffff;
+        }
+        a {
+            color: #1E90FF;
+        }
+        .stButton button {
+            background-color: #444444;
+            color: #ffffff;
+        }
+        .stTextInput input {
+            background-color: #444444;
+            color: #ffffff;
+        }
+        .stMarkdown {
+            color: #ffffff;
+        }
+    </style>
+    """
+    light_css = """
+    <style>
+        body {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        a {
+            color: #1E90FF;
+        }
+        .stButton button {
+            background-color: #f0f0f0;
+            color: #000000;
+        }
+        .stTextInput input {
+            background-color: #ffffff;
+            color: #000000;
+        }
+        .stMarkdown {
+            color: #000000;
+        }
+    </style>
+    """
+    if dark_mode:
+        st.markdown(dark_css, unsafe_allow_html=True)
+    else:
+        st.markdown(light_css, unsafe_allow_html=True)
+    st.markdown(css, unsafe_allow_html=True)
+
+dark_mode = toggle_dark_light_mode()
+set_custom_css(dark_mode)
 
 st.title("VOICES")
 st.header(f"HAVE YOUR SAY")
@@ -166,6 +206,7 @@ else:
     feed = feedparser.parse('http://feeds.bbci.co.uk/news/rss.xml')
 
 show_voting_section = toggle_voting_section()
+
 # Sidebar for saved articles
 with st.sidebar:
     st.header("Saved Articles")
@@ -195,17 +236,26 @@ if show_voting_section:
                     content, image = fetch_article_content(article_url)
 
                     if image:
-                        st.image(image, width=500)
+                        st.image(image, use_column_width=True)
+
+                    # Initialize like/dislike counters
+                    like_key = f"like_{idx}"
+                    dislike_key = f"dislike_{idx}"
+                    if like_key not in st.session_state:
+                        st.session_state[like_key] = 0
+                    if dislike_key not in st.session_state:
+                        st.session_state[dislike_key] = 0
 
                     # Styling for the card
+                    card_color = "#444444" if dark_mode else "#f9f9f9"
                     st.markdown(
                         f"""
-                        <div style="border: 1px solid #ccc; border-radius: 10px; padding: 20px; margin: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); background-color: #f9f9f9; transition: transform 0.3s ease-in-out;">
-                            <h3><a href="{entry.link}" style="color: #000000; text-decoration: none;">{entry.title}</a></h3>
+                        <div style="border: 1px solid #ccc; border-radius: 10px; padding: 20px; margin: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); background-color: {card_color}; transition: transform 0.3s ease-in-out;">
+                            <h3><a href="{entry.link}" style="color: {'#ffffff' if dark_mode else '#000000'}; text-decoration: none;">{entry.title}</a></h3>
                             <p>{entry.summary}</p>
                             <div style="margin-top: 10px;">
-                                <button style="margin-right: 10px;">👍 Like</button>
-                                <button>👎 Dislike</button>
+                                <button style="margin-right: 10px;" onclick="window.parent.streamlit.setComponentValue('{like_key}', window.parent.streamlit.getComponentValue('{like_key}') + 1)">👍 Like ({st.session_state[like_key]})</button>
+                                <button onclick="window.parent.streamlit.setComponentValue('{dislike_key}', window.parent.streamlit.getComponentValue('{dislike_key}') + 1)">👎 Dislike ({st.session_state[dislike_key]})</button>
                             </div>
                         </div>
                         """,
@@ -264,23 +314,21 @@ if show_voting_section:
 
                                 st.success("Thank you for voting!")
 
-                            if any(count > 0 for count in votes.values()):
-                                st.write("Current Poll Results:")
-                                total_votes = sum(votes.values())
-                                for option, count in votes.items():
-                                    percentage = count / total_votes * 100 if total_votes != 0 else 0
-                                    st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
-                                    st.progress(percentage / 100)
+                            with st.expander("Show/Hide Poll Results"):
+                                if any(count > 0 for count in votes.values()):
+                                    st.write("Current Poll Results:")
+                                    total_votes = sum(votes.values())
+                                    for option, count in votes.items():
+                                        percentage = count / total_votes * 100 if total_votes != 0 else 0
+                                        st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
+                                        st.progress(percentage / 100)
+                                    st.write("---")
+
+                                    st.write("Votes by Country:")
+                                    for country, count in location_votes.items():
+                                        st.write(f"{country}: {count} votes")
+
                                 st.write("---")
-
-                                st.write("Votes by Country:")
-                                for country, count in location_votes.items():
-                                    st.write(f"{country}: {count} votes")
-
-                                st.write("World Map of Votes:")
-                                map_data = plot_world_map(location_votes)
-                                st.map(map_data)
-                            st.write("---")
 
                         else:
                             st.write("No relevant entities found for voting.")
