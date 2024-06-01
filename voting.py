@@ -4,37 +4,43 @@ import spacy
 from opencage.geocoder import OpenCageGeocode
 from bs4 import BeautifulSoup
 import feedparser
+import aiohttp
+import asyncio
 
 # Set Streamlit page configuration
 st.set_page_config(layout='wide')
 IPINFO_API_KEY = 'f2439f60dfe99d'
 
-# Function to fetch article content and image
-def fetch_article_content(url):
-    response = requests.get(url)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    
-    # Extract content
-    paragraphs = soup.find_all('p')
-    if paragraphs:
-        content = ' '.join([para.get_text() for para in paragraphs])
-    else:
-        content = 'Content not available'
+@st.cache_resource
+def load_spacy_model():
+    return spacy.load("en_core_web_sm")
 
-    # Extract image
-    image = None
-    img_tag = soup.find('meta', property='og:image')
-    if img_tag and img_tag['content']:
-        image = img_tag['content']
-    else:
-        img_tag = soup.find('img')
-        if img_tag and img_tag['src']:
-            image = img_tag['src']
-    
-    return content, image
+# Function to fetch article content and image using asynchronous requests
+async def fetch_article_content_async(session, url):
+    async with session.get(url) as response:
+        content = await response.read()
+        soup = BeautifulSoup(content, 'lxml')  # Use lxml for faster parsing
 
-# Load spaCy model
-nlp = spacy.load("en_core_web_sm")
+        # Extract content
+        paragraphs = soup.find_all('p')
+        content = ' '.join([para.get_text() for para in paragraphs]) if paragraphs else 'Content not available'
+
+        # Extract image
+        image = None
+        img_tag = soup.find('meta', property='og:image')
+        if img_tag and img_tag['content']:
+            image = img_tag['content']
+        else:
+            img_tag = soup.find('img')
+            if img_tag and img_tag['src']:
+                image = img_tag['src']
+
+        return content, image
+
+async def fetch_articles(urls):
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_article_content_async(session, url) for url in urls]
+        return await asyncio.gather(*tasks)
 
 # OpenCage API key
 OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenCage API key
@@ -43,18 +49,18 @@ OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenC
 geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
 
 # Function to extract relevant entities from text
+@st.cache_data
 def extract_relevant_entities(text):
+    nlp = load_spacy_model()
     doc = nlp(text)
-    entities = []
-    for ent in doc.ents:
-        if ent.label_ in ['PERSON', 'ORG', 'GPE']:
-            entities.append(ent.text)
+    entities = [ent.text for ent in doc.ents if ent.label_ in ['PERSON', 'ORG', 'GPE']]
     return list(set(entities))
 
 # Function to generate a question based on the article
 def generate_question(article):
     title = article['title']
     description = article['description'] or ''
+    nlp = load_spacy_model()
     doc = nlp(title + " " + description)
     questions = []
     for sent in doc.sents:
@@ -70,11 +76,13 @@ def determine_poll_type(article):
         return "entity_based"
 
 # Function to get the user's location
+@st.cache_data
 def get_user_location(api_key):
     response = requests.get(f'https://ipinfo.io/json?token={api_key}')
     return response.json()
 
 # Function to get coordinates of a country
+@st.cache_data
 def get_country_coordinates(country_name):
     result = geocoder.geocode(country_name)
     if result and len(result):
@@ -95,7 +103,7 @@ def plot_world_map(location_votes):
 def create_social_media_share_buttons(article_title, votes, options):
     website_url = "https://whatwewant.streamlit.app/"
     options_str = "%20".join(options)
-    twitter_url = f"https://twitter.com/intent/tweet?url={article_title}&text={website_url}&hashtags={votes}&options={options_str}"
+    twitter_url = f"https://twitter.com/intent/tweet?url={article_title}&text={website_url}&options={options_str}"
     facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
     linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
     instagram_url = f"https://www.instagram.com/?url={website_url}"
@@ -137,11 +145,17 @@ def set_custom_css(dark_mode):
     css = """
     <style>
         h1 {
-            font-family: 'Times New Roman', Times, serif;
+            font-family: 'Garamond';
             font-weight: bold;
-            font-size: 4em;
+            font-size: 5em;
             text-align: center;
         }
+        h2 {
+            font-family: 'Times New Roman';
+            font-weight: bold;
+            text-align: center;
+        }
+       
     </style>
     """
     dark_css = """
@@ -159,9 +173,6 @@ def set_custom_css(dark_mode):
         }
         .stTextInput input {
             background-color: #444444;
-            color: #ffffff;
-        }
-        .stMarkdown {
             color: #ffffff;
         }
     </style>
@@ -183,9 +194,6 @@ def set_custom_css(dark_mode):
             background-color: #ffffff;
             color: #000000;
         }
-        .stMarkdown {
-            color: #000000;
-        }
     </style>
     """
     if dark_mode:
@@ -194,16 +202,31 @@ def set_custom_css(dark_mode):
         st.markdown(light_css, unsafe_allow_html=True)
     st.markdown(css, unsafe_allow_html=True)
 
+# Function to search for articles
+def search_articles(feed, query):
+    if not query:
+        return feed.entries
+    filtered_entries = []
+    for entry in feed.entries:
+        if query.lower() in entry.title.lower() or query.lower() in entry.summary.lower():
+            filtered_entries.append(entry)
+    return filtered_entries
+
+# Main App
+
 dark_mode = toggle_dark_light_mode()
 set_custom_css(dark_mode)
 
-st.title("VOICES")
-st.header(f"HAVE YOUR SAY")
+st.title("- VOICES -")
+st.header("HAVE YOUR SAY")
 
-# User input for filtering articles by keyword
-user_query = st.sidebar.text_input("Search for articles containing:", key="search_input")
+# Add category section
+categories = ["All", "Politics", "Technology", "Sports", "Entertainment", "Health"]
+selected_category = st.selectbox("Select Category", categories)
 
-# News source selection
+# User input for searching articles
+user_query = st.text_input("Search for articles containing:")
+
 news_sources = {
     "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
     "RTE": "https://www.rte.ie/rss/news.xml",
@@ -215,7 +238,6 @@ news_sources = {
 news_source = st.sidebar.selectbox("Select news source:", list(news_sources.keys()))
 feed_url = news_sources[news_source]
 
-# Reload Button
 if st.button("Reload Feed"):
     feed = feedparser.parse(feed_url)
 else:
@@ -228,11 +250,11 @@ with st.sidebar:
     st.header("Saved Articles")
     if 'saved_posts' not in st.session_state:
         st.session_state.saved_posts = []
-    if st.session_state.saved_posts:
-        for post in st.session_state.saved_posts:
+    saved_posts = st.session_state.saved_posts
+    if saved_posts:
+        for post in saved_posts:
             if st.button(f"Remove {post['title']}", key=post['link']):
-                # Remove the article from saved posts
-                st.session_state.saved_posts = [p for p in st.session_state.saved_posts if p['link'] != post['link']]
+                st.session_state.saved_posts = [p for p in saved_posts if p['link'] != post['link']]
                 st.experimental_rerun()
             st.markdown(f"### [{post['title']}]({post['link']})")
             st.markdown(f"{post['summary']}")
@@ -240,46 +262,49 @@ with st.sidebar:
         st.write("No articles saved.")
 
 if show_voting_section:
-    if feed.entries:
-        num_cols = min(len(feed.entries), 3)
+    filtered_entries = search_articles(feed, user_query)
+    if filtered_entries:
+        num_cols = min(len(filtered_entries), 3)
         cols = st.columns(num_cols)
 
-        for idx, entry in enumerate(feed.entries):
+        urls = [entry.link for entry in filtered_entries]
+        articles = asyncio.run(fetch_articles(urls))
+
+        for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
             col = cols[idx % num_cols]
             with col:
                 with st.container():
                     article_url = entry.link
-                    content, image = fetch_article_content(article_url)
 
-                    # Initialize like/dislike counters
+                    # Initialize like counter
                     like_key = f"like_{idx}"
-                    dislike_key = f"dislike_{idx}"
                     if like_key not in st.session_state:
                         st.session_state[like_key] = 0
-                    if dislike_key not in st.session_state:
-                        st.session_state[dislike_key] = 0
+
+                    # Increment function
+                    def increment_like():
+                        st.session_state[like_key] += 1
 
                     # Styling for the card
                     card_color = "#444444" if dark_mode else "#f9f9f9"
                     text_color = "#ffffff" if dark_mode else "#000000"
-                    
+
                     card_html = f"""
                     <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
                         <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
                         <p style="color: {text_color};">{entry.summary}</p>
-                        """
+                    """
                     if image:
                         card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
-                        
-                    card_html += f"""
-                        <div style="margin-top: 10px;">
-                            <button onclick="window.parent.streamlit.setComponentValue('{like_key}', window.parent.streamlit.getComponentValue('{like_key}') + 1)">👍 Like ({st.session_state[like_key]})</button>
-                            <button onclick="window.parent.streamlit.setComponentValue('{dislike_key}', window.parent.streamlit.getComponentValue('{dislike_key}') + 1)">👎 Dislike ({st.session_state[dislike_key]})</button>
-                        </div>
-                    </div>
-                    """
+
+                    card_html += "</div>"
                     st.markdown(card_html, unsafe_allow_html=True)
-                    
+
+                
+
+                    if st.button("Save", key=f"save_{idx}", on_click=lambda url=article_url: st.session_state.saved_posts.append({'title': entry.title, 'summary': entry.summary, 'link': url})):
+                        st.success(f"Saved {entry.title}")
+
                     if content:
                         poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
                         if poll_type == "yes_no":
@@ -330,7 +355,7 @@ if show_voting_section:
                                     location_votes[country] += 1
                                 st.session_state[location_key] = location_votes
 
-                                st.success("Thank you for voting!")
+                                st.write("🔥UPROARED!✅ POWER-TO-YOU 🔥! ")
 
                             with st.expander("Show/Hide Poll Results"):
                                 if any(count > 0 for count in votes.values()):
