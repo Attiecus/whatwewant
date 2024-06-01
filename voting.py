@@ -299,7 +299,7 @@ if show_voting_section:
                             'link': article_url
                         })
                         st.success(f"Saved {entry.title}")
-                        
+                        st.experimental_rerun()
 
                     if content:
                         poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
