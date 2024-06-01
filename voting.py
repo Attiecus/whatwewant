@@ -26,6 +26,10 @@ def fetch_article_content(url):
     img_tag = soup.find('meta', property='og:image')
     if img_tag and img_tag['content']:
         image = img_tag['content']
+    else:
+        img_tag = soup.find('img')
+        if img_tag and img_tag['src']:
+            image = img_tag['src']
     
     return content, image
 
@@ -199,11 +203,23 @@ st.header(f"HAVE YOUR SAY")
 # User input for filtering articles by keyword
 user_query = st.sidebar.text_input("Search for articles containing:", key="search_input")
 
+# News source selection
+news_sources = {
+    "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
+    "RTE": "https://www.rte.ie/rss/news.xml",
+    "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+    #"Times of India": "https://timesofindia.indiatimes.com/rssfeeds/-2128936835.cms",
+    "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+}
+
+news_source = st.sidebar.selectbox("Select news source:", list(news_sources.keys()))
+feed_url = news_sources[news_source]
+
 # Reload Button
 if st.button("Reload Feed"):
-    feed = feedparser.parse('http://feeds.bbci.co.uk/news/rss.xml')
+    feed = feedparser.parse(feed_url)
 else:
-    feed = feedparser.parse('http://feeds.bbci.co.uk/news/rss.xml')
+    feed = feedparser.parse(feed_url)
 
 show_voting_section = toggle_voting_section()
 
