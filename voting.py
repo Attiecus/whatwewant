@@ -201,36 +201,7 @@ def set_custom_css(dark_mode):
     else:
         st.markdown(light_css, unsafe_allow_html=True)
     st.markdown(css, unsafe_allow_html=True)
-    # Set custom CSS for responsive title and header
-def set_custom_css():
-    css = """
-    <style>
-        h1 {
-            font-family: 'Garamond';
-            font-weight: bold;
-            font-size: 3em;
-            text-align: center;
-        }
-        h2 {
-            font-family: 'Times New Roman';
-            font-weight: bold;
-            text-align: center;
-        }
-        @media (max-width: 768px) {
-            h1 {
-                font-size: 2em;
-            }
-            h2 {
-                font-size: 1.5em;
-            }
-        }
-    </style>
-    """
-    st.markdown(css, unsafe_allow_html=True)
-
-# Call the function to set custom CSS
-set_custom_css()
-
+    
 
 # Function to search for articles
 def search_articles(feed, query):
@@ -247,7 +218,7 @@ def search_articles(feed, query):
 dark_mode = toggle_dark_light_mode()
 set_custom_css(dark_mode)
 
-st.title("- VOICES -")
+st.title("-VOICES-")
 st.header("HAVE YOUR SAY")
 
 # Add category section
