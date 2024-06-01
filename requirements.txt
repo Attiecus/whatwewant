@@ -8,3 +8,5 @@ en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_
 opencage==2.4.0
 beautifulsoup4==4.12.3
 feedparser==6.0.11
+aiohttp==3.9.0
+asyncio==3.4.3
