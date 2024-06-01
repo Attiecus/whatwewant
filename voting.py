@@ -235,9 +235,6 @@ if show_voting_section:
                     article_url = entry.link
                     content, image = fetch_article_content(article_url)
 
-                    if image:
-                        st.image(image, use_column_width=True)
-
                     # Initialize like/dislike counters
                     like_key = f"like_{idx}"
                     dislike_key = f"dislike_{idx}"
@@ -248,20 +245,25 @@ if show_voting_section:
 
                     # Styling for the card
                     card_color = "#444444" if dark_mode else "#f9f9f9"
-                    st.markdown(
-                        f"""
-                        <div style="border: 1px solid #ccc; border-radius: 10px; padding: 20px; margin: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); background-color: {card_color}; transition: transform 0.3s ease-in-out;">
-                            <h3><a href="{entry.link}" style="color: {'#ffffff' if dark_mode else '#000000'}; text-decoration: none;">{entry.title}</a></h3>
-                            <p>{entry.summary}</p>
-                            <div style="margin-top: 10px;">
-                                <button style="margin-right: 10px;" onclick="window.parent.streamlit.setComponentValue('{like_key}', window.parent.streamlit.getComponentValue('{like_key}') + 1)">👍 Like ({st.session_state[like_key]})</button>
-                                <button onclick="window.parent.streamlit.setComponentValue('{dislike_key}', window.parent.streamlit.getComponentValue('{dislike_key}') + 1)">👎 Dislike ({st.session_state[dislike_key]})</button>
-                            </div>
+                    text_color = "#ffffff" if dark_mode else "#000000"
+                    
+                    card_html = f"""
+                    <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
+                        <p style="color: {text_color};">{entry.summary}</p>
+                        """
+                    if image:
+                        card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
+                        
+                    card_html += f"""
+                        <div style="margin-top: 10px;">
+                            <button onclick="window.parent.streamlit.setComponentValue('{like_key}', window.parent.streamlit.getComponentValue('{like_key}') + 1)">👍 Like ({st.session_state[like_key]})</button>
+                            <button onclick="window.parent.streamlit.setComponentValue('{dislike_key}', window.parent.streamlit.getComponentValue('{dislike_key}') + 1)">👎 Dislike ({st.session_state[dislike_key]})</button>
                         </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
-
+                    </div>
+                    """
+                    st.markdown(card_html, unsafe_allow_html=True)
+                    
                     if content:
                         poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
                         if poll_type == "yes_no":
@@ -336,3 +338,20 @@ if show_voting_section:
                         st.write("No content available for deeper analysis.")
     else:
         st.error("Failed to fetch trending news.")
+
+# Custom CSS for card layout
+st.markdown("""
+<style>
+    .card {
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease-in-out;
+    }
+    .card:hover {
+        transform: scale(1.05);
+    }
+</style>
+""", unsafe_allow_html=True)
