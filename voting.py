@@ -29,11 +29,10 @@ if not cookies.ready():
     st.stop()
 
 # Function to load image
-def load_image(filepath: str):
-    return Image.open(filepath)
+
 
 # Load the PNG image file
-logo_image = load_image(r"C:\Users\Athar\OneDrive\Documents\voting\streamlit demo\Untitled design (1).png")
+#logo_image = load_image(r"C:\Users\Athar\OneDrive\Documents\voting\streamlit demo\Untitled design (1).png")
 
 # Function to hash passwords (if needed for comparison)
 def hash_password(password):
