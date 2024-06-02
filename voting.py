@@ -13,7 +13,8 @@ import json
 import firebase_admin
 from firebase_admin import credentials, auth
 from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
-from PIL import Image  # Added this import
+from datetime import datetime, timedelta
+from PIL import Image
 
 # Initialize cookie manager
 st.set_page_config(layout='wide')
@@ -28,11 +29,8 @@ cookies = EncryptedCookieManager(prefix="echo_app_", password="this_is_a_secret_
 if not cookies.ready():
     st.stop()
 
-# Function to load image
-
-
 # Load the PNG image file
-#logo_image = load_image(r"C:\Users\Athar\OneDrive\Documents\voting\streamlit demo\Untitled design (1).png")
+# logo_image = load_image(r"C:\Users\Athar\OneDrive\Documents\voting\streamlit demo\Untitled design (1).png")
 
 # Function to hash passwords (if needed for comparison)
 def hash_password(password):
@@ -47,7 +45,6 @@ def check_login():
 
 # Login function using Firebase Authentication
 def login():
-    #st.image(logo_image, width=200)
     st.markdown("<h1 style='font-family: Garamond; font-weight: bold; font-size: 5em; text-align: center;'>-ECHO-</h1>", unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center;'>Login</h2>", unsafe_allow_html=True)
     username = st.text_input("Email", key="login_email")
@@ -92,7 +89,6 @@ def register():
                 st.error(f"Error: {e}")
 
         # Add options to register with Google, Twitter, Facebook
-        
 
 # Logout function
 def logout():
@@ -119,7 +115,6 @@ def track_vote(article_id):
 
 # Tutorial function
 def tutorial():
-   # st.image(logo_image, width=200)
     st.markdown("<h1 style='font-family: Garamond; font-weight: bold; font-size: 5em; text-align: center;'>-ECHO-</h1>", unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center;'>Welcome to ECHO!</h2>", unsafe_allow_html=True)
     st.write("""
@@ -152,6 +147,10 @@ def tutorial():
 
 # Main application logic
 def main():
+    # Set default mode
+    if 'dark_mode' not in st.session_state:
+        st.session_state['dark_mode'] = False
+
     page = st.sidebar.selectbox("Select Page", ["Home", "Login", "Tutorial"])
     
     if page == "Login":
@@ -280,8 +279,6 @@ def main():
             return st.checkbox("Show/Hide Voting Section", value=show_voting_section, key='toggle_voting')
 
         def toggle_dark_light_mode():
-            if 'dark_mode' not in st.session_state:
-                st.session_state['dark_mode'] = False
             st.session_state['dark_mode'] = st.sidebar.checkbox("Dark Mode", value=st.session_state['dark_mode'])
             return st.session_state['dark_mode']
 
@@ -362,6 +359,15 @@ def main():
                     filtered_entries.append(entry)
             return filtered_entries
 
+        def filter_articles_by_date(feed, days=1):
+            filtered_entries = []
+            current_time = datetime.now()
+            for entry in feed.entries:
+                published_time = datetime(*entry.published_parsed[:6])
+                if current_time - timedelta(days=days) <= published_time <= current_time:
+                    filtered_entries.append(entry)
+            return filtered_entries
+
         dark_mode = toggle_dark_light_mode()
         set_custom_css(dark_mode)
 
@@ -406,6 +412,7 @@ def main():
                 st.write("No articles saved.")
 
         if show_voting_section:
+            filtered_entries = filter_articles_by_date(feed, days=1)
             filtered_entries = search_articles(feed, user_query)
             if filtered_entries:
                 num_cols = min(len(filtered_entries), 3)
