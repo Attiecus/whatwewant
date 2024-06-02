@@ -12,3 +12,4 @@ aiohttp==3.9.0
 asyncio==3.4.3
 lxml==5.2.2
 firebase-admin==6.5.0
+streamlit-cookies-manager==0.2.0
