@@ -425,11 +425,12 @@ def main():
 
             # Select language for translation
             languages = {
+            "English": "en",
         "Arabic": "ar",
         "Azerbaijani": "az",
         "Chinese": "zh-CN",
         "Danish": "da",
-        "English": "en",
+        
         "French": "fr",
         "German": "de",
         "Hindi": "hi",
