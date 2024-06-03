@@ -4,7 +4,7 @@ Requests==2.32.2
 streamlit==1.35.0
 spacy==3.7.4
 
-en-core-web-lg @https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.1/en_core_web_lg-3.7.1-py3-none-any.whl
+https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.1/en_core_web_lg-3.7.1-py3-none-any.whl
 Pillow==10.3.0
 opencage==2.4.0
 beautifulsoup4==4.12.3
