@@ -250,7 +250,7 @@ def main():
     def create_social_media_share_buttons(article_title, votes, options):
         website_url = "https://whatwewant.streamlit.app/"
         options_str = "%20".join(options)
-        twitter_url = f"https://twitter.com/intent/tweet?url={article_title}&text={website_url}&options={options_str}"
+        twitter_url = f"https://twitter.com/intent/tweet?url={website_url}&text={article_title}&hashtags={options_str}"
         facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
         linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
         instagram_url = f"https://www.instagram.com/?url={website_url}"
@@ -391,9 +391,7 @@ def main():
     news_source = st.sidebar.selectbox("Select news source:", list(news_sources.keys()))
     feed_url = news_sources[news_source]
 
-    if st.button("Reload Feed"):
-        feed = feedparser.parse(feed_url)
-    else:
+    with st.spinner("Loading feed..."):
         feed = feedparser.parse(feed_url)
 
     show_voting_section = toggle_voting_section()
@@ -425,7 +423,7 @@ def main():
 
             # Select language for translation
             languages = {
-            "English": "en",
+                "English": "en",
         "Arabic": "ar",
         "Azerbaijani": "az",
         "Chinese": "zh-CN",
@@ -537,7 +535,8 @@ def main():
                                         if voted_option in votes:
                                             votes[voted_option] += 1
                                         else:
-                                            votes[voted_option] = 1
+                                            st.error("Invalid vote option. Please select a valid option.")
+                                            continue
                                         st.session_state[vote_key] = votes
 
                                         user_location = get_user_location(IPINFO_API_KEY)
