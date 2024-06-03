@@ -38,8 +38,10 @@ def hash_password(password):
 def check_login():
     if "user" in st.session_state:
         return True
-    else:
-        return False
+    elif cookies.get("user"):
+        st.session_state["user"] = cookies["user"]
+        return True
+    return False
 
 # Login function using Firebase Authentication
 def login():
@@ -171,7 +173,8 @@ def main():
 
     @st.cache_resource
     def load_spacy_model():
-        return spacy.load("en_core_web_sm")
+        return spacy.load("en_core_web_lg")
+
     async def fetch_article_content_async(session, url):
         async with session.get(url) as response:
             content = await response.read()
@@ -190,7 +193,6 @@ def main():
                     image = img_tag['src']
 
             return content, image
-
 
     async def fetch_articles(urls):
         async with aiohttp.ClientSession() as session:
@@ -379,16 +381,15 @@ def main():
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
     news_sources = {
-    "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
-    "RTE": "https://www.rte.ie/rss/news.xml",
-    "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
-    "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
-    "Hürriyet": "https://www.hurriyet.com.tr/rss/anasayfa"
-}
+        "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
+        "RTE": "https://www.rte.ie/rss/news.xml",
+        "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+        "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+        "Hürriyet": "https://www.hurriyet.com.tr/rss/anasayfa"
+    }
 
     news_source = st.sidebar.selectbox("Select news source:", list(news_sources.keys()))
     feed_url = news_sources[news_source]
-
 
     if st.button("Reload Feed"):
         feed = feedparser.parse(feed_url)
@@ -424,18 +425,26 @@ def main():
 
             # Select language for translation
             languages = {
-                "English": "en",
-                "Spanish": "es",
-                "French": "fr",
-                "German": "de",
-                "Chinese": "zh-CN",
-                "Turkce":"tr",
-                "Arabic":"ar",
-                "Hindi":"hi",
-                "Ukrainian":"uk",
-                
-                
-            }
+        "Arabic": "ar",
+        "Azerbaijani": "az",
+        "Chinese": "zh-CN",
+        "Danish": "da",
+        "English": "en",
+        "French": "fr",
+        "German": "de",
+        "Hindi": "hi",
+        "Japanese": "ja",
+        "Korean": "ko",
+        "Marathi": "mr",
+        "Norwegian": "no",
+        "Portuguese": "pt",
+        "Russian": "ru",
+        "Spanish": "es",
+        "Swedish": "sv",
+        "Turkish": "tr",
+        "Ukrainian": "uk"
+    }
+
             selected_language = st.sidebar.selectbox("Select Language", list(languages.keys()))
             target_language = languages[selected_language]
 
@@ -453,7 +462,7 @@ def main():
                         text_color = "#ffffff" if dark_mode else "#000000"
 
                         card_html = f"""
-                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px; transition: transform 0.3s ease-in-out;">
                             <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{translated_title}</a></h3>
                             <p style="color: {text_color};">{translated_summary}</p>
                         """
@@ -461,7 +470,18 @@ def main():
                             card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
 
                         card_html += "</div>"
+
+                        # CSS for hover effect
+                        st.markdown("""
+                            <style>
+                                .card:hover {
+                                    transform: scale(1.05);
+                                }
+                            </style>
+                        """, unsafe_allow_html=True)
+
                         st.markdown(card_html, unsafe_allow_html=True)
+
 
                         if st.button("Save", key=f"save_{idx}"):
                             st.session_state.saved_posts.append({
@@ -482,19 +502,23 @@ def main():
                                 sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
                                 options = [entity[0] for entity in sorted_entities[:5]]
 
+                            # Translate options
+                            translated_options = [GoogleTranslator(source='auto', target=target_language).translate(option) for option in options]
+
                             custom_option = st.text_input(f"Enter a custom option for article {idx}:", key=f"custom_option_{idx}")
                             if custom_option:
-                                options.append(custom_option)
+                                translated_custom_option = GoogleTranslator(source='auto', target=target_language).translate(custom_option)
+                                translated_options.append(translated_custom_option)
 
-                            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+                            hashtag_options = [f"#{option.replace(' ', '')}" for option in translated_options]
                             create_social_media_share_buttons(article_url, translated_title, hashtag_options)
 
-                            if options:
+                            if translated_options:
                                 vote_key = f"votes_{idx}"
                                 location_key = f"location_votes_{idx}"
 
                                 if vote_key not in st.session_state:
-                                    st.session_state[vote_key] = {option: 0 for option in options}
+                                    st.session_state[vote_key] = {option: 0 for option in translated_options}
                                 if location_key not in st.session_state:
                                     st.session_state[location_key] = {}
 
