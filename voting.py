@@ -11,18 +11,18 @@ import time
 from streamlit_cookies_manager import EncryptedCookieManager
 import json
 import firebase_admin
-from firebase_admin import credentials, firestore, auth
+from firebase_admin import credentials, auth
 from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
 from datetime import datetime, timedelta
 from PIL import Image
 
-# Initialize Firebase app
-if not firebase_admin._apps:
-    cred = credentials.Certificate("path_to_your_firebase_admin_sdk_json")
-    firebase_admin.initialize_app(cred)
+# Initialize cookie manager
+st.set_page_config(layout='wide')
 
-# Initialize Firestore
-db = firestore.client()
+# Check if Firebase app is already initialized
+if not firebase_admin._apps:
+    cred = credentials.Certificate("echo-73aeb-firebase-adminsdk-5cxbo-01aa7691b8.json")
+    firebase_admin.initialize_app(cred)
 
 # Initialize cookie manager with password
 cookies = EncryptedCookieManager(prefix="echo_app_", password="this_is_a_secret_key")
@@ -37,54 +37,9 @@ def hash_password(password):
 def check_login():
     if "user" in st.session_state:
         return True
-    elif cookies.get("user"):
-        st.session_state["user"] = cookies["user"]
-        return True
-    return False
-
-# Function to create a unique post URL
-def generate_post_url(post_id):
-    base_url = "https://voices.streamlit.app/"
-    return f"{base_url}?post_id={post_id}"
-
-# Function to create a Twitter share button
-def create_twitter_share_button(post_id, tweet_content, hashtags):
-    post_url = generate_post_url(post_id)
-    hashtag_str = " ".join([f"#{tag}" for tag in hashtags])
-    twitter_url = f"https://twitter.com/intent/tweet?text={tweet_content} {hashtag_str} {post_url}"
-    st.markdown(f"[Tweet this](https://twitter.com/intent/tweet?text={tweet_content} {hashtag_str} {post_url})")
-
-# Function to create or update a poll in Firestore
-def create_or_update_poll(post_id, option):
-    doc_ref = db.collection("polls").document(post_id)
-    doc = doc_ref.get()
-    if doc.exists:
-        poll_data = doc.to_dict()
-        if option in poll_data["options"]:
-            poll_data["options"][option] += 1
-        else:
-            poll_data["options"][option] = 1
     else:
-        poll_data = {
-            "options": {option: 1}
-        }
-    doc_ref.set(poll_data)
+        return False
 
-# Function to display poll results
-def display_poll_results(post_id):
-    doc_ref = db.collection("polls").document(post_id)
-    doc = doc_ref.get()
-    if doc.exists:
-        poll_data = doc.to_dict()
-        options = poll_data["options"]
-        total_votes = sum(options.values())
-        st.write("Current Poll Results:")
-        for option, count in options.items():
-            percentage = count / total_votes * 100 if total_votes != 0 else 0
-            st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
-            st.progress(percentage / 100)
-    else:
-        st.write("No votes yet.")
 # Login function using Firebase Authentication
 def login():
     st.markdown("<h1 style='font-family: Garamond; font-weight: bold; font-size: 5em; text-align: center;'>-ECHO-</h1>", unsafe_allow_html=True)
@@ -138,6 +93,22 @@ def logout():
         cookies["user"] = ""
         cookies.save()
         st.experimental_rerun()
+
+# Track vote
+def track_vote(article_id):
+    if "voted_articles" not in st.session_state:
+        st.session_state["voted_articles"] = []
+    if article_id not in st.session_state["voted_articles"]:
+        st.session_state["voted_articles"].append(article_id)
+        # Convert the list to a JSON string before setting it in cookies
+        cookies["voted_articles"] = json.dumps(st.session_state["voted_articles"])
+        cookies.save()
+        return True
+    else:
+        st.warning("You have already voted on this article.")
+        return False
+
+# Tutorial function
 def tutorial():
     st.markdown("<h1 style='font-family: Garamond; font-weight: bold; font-size: 5em; text-align: center;'>-ECHO-</h1>", unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center;'>Welcome to ECHO!</h2>", unsafe_allow_html=True)
@@ -171,7 +142,8 @@ def tutorial():
 
     if st.button("Go to Login Page"):
         st.session_state['page'] = "Login"
-        st.experimental_rerun()
+
+# Main application logic
 def main():
     # Set default mode
     if 'dark_mode' not in st.session_state:
@@ -183,18 +155,16 @@ def main():
     if st.session_state['page'] == "Login":
         login()
         register()
-    elif st.session_state['page'] == "Tutorial":
+    else:
         tutorial()
         return
+
+    # User authentication
+    if not check_login():
+        return
     else:
-        # User authentication
-        if not check_login():
-            login()
-            register()
-            return
-        else:
-            st.sidebar.write(f"Welcome, {st.session_state['user']}!")
-            logout()
+        st.sidebar.write(f"Welcome, {st.session_state['user']}!")
+        logout()
 
     IPINFO_API_KEY = 'f2439f60dfe99d'
 
@@ -534,7 +504,6 @@ def main():
 
                                 with st.expander("Show/Hide Poll Results"):
                                     if any(count > 0 for count in votes.values()):
-
                                         st.write("Current Poll Results:")
                                         total_votes = sum(votes.values())
                                         for option, count in votes.items():
