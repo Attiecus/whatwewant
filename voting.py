@@ -39,7 +39,12 @@ def check_login():
     if "user" in st.session_state:
         if "voted_articles" not in st.session_state:
             voted_articles_cookie = cookies.get("voted_articles", "[]")  # Default to an empty JSON list
-            st.session_state["voted_articles"] = json.loads(voted_articles_cookie)  # Ensure it's a list
+            try:
+                st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
+                if not isinstance(st.session_state["voted_articles"], list):
+                    st.session_state["voted_articles"] = []
+            except json.JSONDecodeError:
+                st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
         return True
     else:
         return False
@@ -102,7 +107,7 @@ def logout():
 # Track vote
 # Track vote
 def track_vote(article_id):
-    if "voted_articles" not in st.session_state:
+    if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
         st.session_state["voted_articles"] = []
 
     if article_id not in st.session_state["voted_articles"]:
@@ -422,137 +427,137 @@ def main():
             st.write("No articles saved.")
 
     if show_voting_section:
-        filtered_entries = filter_articles_by_date(feed, days=1)
-        filtered_entries = search_articles(feed, user_query)
-        #filtered_entries = filter_articles_by_category(filtered_entries, selected_category)
-        if filtered_entries:
-            num_cols = min(len(filtered_entries), 3)
-            cols = st.columns(num_cols)
+         filtered_entries = filter_articles_by_date(feed, days=1)
+    filtered_entries = search_articles(feed, user_query)
+    #filtered_entries = filter_articles_by_category(filtered_entries, selected_category)
+    if filtered_entries:
+        num_cols = min(len(filtered_entries), 3)
+        cols = st.columns(num_cols)
 
-            urls = [entry.link for entry in filtered_entries]
-            articles = asyncio.run(fetch_articles(urls))
+        urls = [entry.link for entry in filtered_entries]
+        articles = asyncio.run(fetch_articles(urls))
 
-            for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
-                col = cols[idx % num_cols]
-                with col:
-                    with st.container():
-                        article_url = entry.link
+        for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
+            col = cols[idx % num_cols]
+            with col:
+                with st.container():
+                    article_url = entry.link
 
-                        card_color = "#444444" if dark_mode else "#f9f9f9"
-                        text_color = "#ffffff" if dark_mode else "#000000"
+                    card_color = "#444444" if dark_mode else "#f9f9f9"
+                    text_color = "#ffffff" if dark_mode else "#000000"
 
-                        card_html = f"""
-                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                            <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
-                            <p style="color: {text_color};">{entry.summary}</p>
-                        """
-                        if image:
-                            card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
+                    card_html = f"""
+                    <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
+                        <p style="color: {text_color};">{entry.summary}</p>
+                    """
+                    if image:
+                        card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
 
-                        card_html += "</div>"
-                        st.markdown(card_html, unsafe_allow_html=True)
+                    card_html += "</div>"
+                    st.markdown(card_html, unsafe_allow_html=True)
 
-                        if st.button("Save", key=f"save_{idx}"):
-                            st.session_state.saved_posts.append({
-                                'title': entry.title,
-                                'summary': entry.summary,
-                                'link': article_url
-                            })
-                            st.success(f"Saved {entry.title}")
-                            st.experimental_rerun()
+                    if st.button("Save", key=f"save_{idx}"):
+                        st.session_state.saved_posts.append({
+                            'title': entry.title,
+                            'summary': entry.summary,
+                            'link': article_url
+                        })
+                        st.success(f"Saved {entry.title}")
+                        st.experimental_rerun()
 
-                        if content:
-                            poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
-                            if poll_type == "yes_no":
-                                options = ["Yes", "No"]
-                            else:
-                                relevant_entities = extract_relevant_entities(content)
-                                entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
-                                sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
-                                options = [entity[0] for entity in sorted_entities[:5]]
+                    if content:
+                        poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
+                        if poll_type == "yes_no":
+                            options = ["Yes", "No"]
+                        else:
+                            relevant_entities = extract_relevant_entities(content)
+                            entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
+                            sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
+                            options = [entity[0] for entity in sorted_entities[:5]]
 
-                            custom_option = st.text_input(f"Enter a custom option for article {idx}:", key=f"custom_option_{idx}")
-                            if custom_option:
-                                options.append(custom_option)
+                        custom_option = st.text_input(f"Enter a custom option for article {idx}:", key=f"custom_option_{idx}")
+                        if custom_option:
+                            options.append(custom_option)
 
-                            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
-                            create_social_media_share_buttons(article_url, entry.title, hashtag_options)
+                        hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+                        create_social_media_share_buttons(article_url, entry.title, hashtag_options)
 
-                            if options:
-                                vote_key = f"votes_{idx}"
-                                location_key = f"location_votes_{idx}"
+                        if options:
+                            vote_key = f"votes_{idx}"
+                            location_key = f"location_votes_{idx}"
 
-                                if vote_key not in st.session_state:
-                                    st.session_state[vote_key] = {option: 0 for option in options}
-                                if location_key not in st.session_state:
-                                    st.session_state[location_key] = {}
+                            if vote_key not in st.session_state:
+                                st.session_state[vote_key] = {option: 0 for option in options}
+                            if location_key not in st.session_state:
+                                st.session_state[location_key] = {}
 
-                                votes = st.session_state[vote_key]
-                                location_votes = st.session_state[location_key]
+                            votes = st.session_state[vote_key]
+                            location_votes = st.session_state[location_key]
 
-                                question = generate_question({'title': entry.title, 'description': entry.summary})
-                                st.write(question)
+                            question = generate_question({'title': entry.title, 'description': entry.summary})
+                            st.write(question)
 
-                                voted_option = st.radio("UPROAR on this news:", hashtag_options, key=f"radio_{idx}")
+                            voted_option = st.radio("UPROAR on this news:", hashtag_options, key=f"radio_{idx}")
 
-                                if st.button("UPROAR", key=f"vote_{idx}"):
-                                    article_id = entry.link
-                                    if track_vote(article_id):
-                                        if voted_option in votes:
-                                            votes[voted_option] += 1
-                                        else:
-                                            votes[voted_option] = 1
-                                        st.session_state[vote_key] = votes
+                            if st.button("UPROAR", key=f"vote_{idx}"):
+                                article_id = entry.link
+                                if track_vote(article_id):
+                                    if voted_option in votes:
+                                        votes[voted_option] += 1
+                                    else:
+                                        votes[voted_option] = 1
+                                    st.session_state[vote_key] = votes
 
-                                        user_location = get_user_location(IPINFO_API_KEY)
-                                        country = user_location.get('country', 'Unknown')
+                                    user_location = get_user_location(IPINFO_API_KEY)
+                                    country = user_location.get('country', 'Unknown')
 
-                                        if country not in location_votes:
-                                            location_votes[country] = 1
-                                        else:
-                                            location_votes[country] += 1
-                                        st.session_state[location_key] = location_votes
+                                    if country not in location_votes:
+                                        location_votes[country] = 1
+                                    else:
+                                        location_votes[country] += 1
+                                    st.session_state[location_key] = location_votes
 
-                                        st.write("🔥UPROARED!✅ POWER-TO-YOU 🔥! ")
+                                    st.write("🔥UPROARED!✅ POWER-TO-YOU 🔥! ")
 
-                                with st.expander("Show/Hide Poll Results"):
-                                    if any(count > 0 for count in votes.values()):
-                                        st.write("Current Poll Results:")
-                                        total_votes = sum(votes.values())
-                                        for option, count in votes.items():
-                                            percentage = count / total_votes * 100 if total_votes != 0 else 0
-                                            st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
-                                            st.progress(percentage / 100)
-                                        st.write("---")
-
-                                        st.write("Votes by Country:")
-                                        for country, count in location_votes.items():
-                                            st.write(f"{country}: {count} votes")
-
+                            with st.expander("Show/Hide Poll Results"):
+                                if any(count > 0 for count in votes.values()):
+                                    st.write("Current Poll Results:")
+                                    total_votes = sum(votes.values())
+                                    for option, count in votes.items():
+                                        percentage = count / total_votes * 100 if total_votes != 0 else 0
+                                        st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
+                                        st.progress(percentage / 100)
                                     st.write("---")
 
-                            else:
-                                st.write("No relevant entities found for voting.")
-                        else:
-                            st.write("No content available for deeper analysis.")
-        else:
-            st.error("Failed to fetch trending news.")
+                                    st.write("Votes by Country:")
+                                    for country, count in location_votes.items():
+                                        st.write(f"{country}: {count} votes")
 
-    st.markdown("""
-    <style>
-        .card {
-            border: 1px solid #ccc;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 10px;
-            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease-in-out;
-        }
-        .card:hover {
-            transform: scale(1.05);
-        }
-    </style>
-    """, unsafe_allow_html=True)
+                                st.write("---")
+
+                        else:
+                            st.write("No relevant entities found for voting.")
+                    else:
+                        st.write("No content available for deeper analysis.")
+    else:
+        st.error("Failed to fetch trending news.")
+
+st.markdown("""
+<style>
+    .card {
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease-in-out;
+    }
+    .card:hover {
+        transform: scale(1.05);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
