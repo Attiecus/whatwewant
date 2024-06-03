@@ -15,6 +15,7 @@ from firebase_admin import credentials, auth
 from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
 from datetime import datetime, timedelta
 from PIL import Image
+from deep_translator import GoogleTranslator
 
 # Initialize cookie manager
 st.set_page_config(layout='wide')
@@ -171,11 +172,10 @@ def main():
     @st.cache_resource
     def load_spacy_model():
         return spacy.load("en_core_web_sm")
-
     async def fetch_article_content_async(session, url):
         async with session.get(url) as response:
             content = await response.read()
-            soup = BeautifulSoup(content, 'lxml')  # Use lxml for faster parsing
+            soup = BeautifulSoup(content, 'html.parser')  # Use html.parser for built-in parsing
 
             paragraphs = soup.find_all('p')
             content = ' '.join([para.get_text() for para in paragraphs]) if paragraphs else 'Content not available'
@@ -190,6 +190,7 @@ def main():
                     image = img_tag['src']
 
             return content, image
+
 
     async def fetch_articles(urls):
         async with aiohttp.ClientSession() as session:
@@ -378,14 +379,16 @@ def main():
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
     news_sources = {
-        "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
-        "RTE": "https://www.rte.ie/rss/news.xml",
-        "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
-        "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
-    }
+    "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
+    "RTE": "https://www.rte.ie/rss/news.xml",
+    "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+    "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+    "Hürriyet": "https://www.hurriyet.com.tr/rss/anasayfa"
+}
 
     news_source = st.sidebar.selectbox("Select news source:", list(news_sources.keys()))
     feed_url = news_sources[news_source]
+
 
     if st.button("Reload Feed"):
         feed = feedparser.parse(feed_url)
@@ -419,19 +422,40 @@ def main():
             urls = [entry.link for entry in filtered_entries]
             articles = asyncio.run(fetch_articles(urls))
 
+            # Select language for translation
+            languages = {
+                "English": "en",
+                "Spanish": "es",
+                "French": "fr",
+                "German": "de",
+                "Chinese": "zh-CN",
+                "Turkce":"tr",
+                "Arabic":"ar",
+                "Hindi":"hi",
+                "Ukrainian":"uk",
+                
+                
+            }
+            selected_language = st.sidebar.selectbox("Select Language", list(languages.keys()))
+            target_language = languages[selected_language]
+
             for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
                 col = cols[idx % num_cols]
                 with col:
                     with st.container():
                         article_url = entry.link
 
+                        # Translate title and summary
+                        translated_title = GoogleTranslator(source='auto', target=target_language).translate(entry.title)
+                        translated_summary = GoogleTranslator(source='auto', target=target_language).translate(entry.summary)
+
                         card_color = "#444444" if dark_mode else "#f9f9f9"
                         text_color = "#ffffff" if dark_mode else "#000000"
 
                         card_html = f"""
                         <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                            <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
-                            <p style="color: {text_color};">{entry.summary}</p>
+                            <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{translated_title}</a></h3>
+                            <p style="color: {text_color};">{translated_summary}</p>
                         """
                         if image:
                             card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
@@ -441,15 +465,15 @@ def main():
 
                         if st.button("Save", key=f"save_{idx}"):
                             st.session_state.saved_posts.append({
-                                'title': entry.title,
-                                'summary': entry.summary,
+                                'title': translated_title,
+                                'summary': translated_summary,
                                 'link': article_url
                             })
-                            st.success(f"Saved {entry.title}")
+                            st.success(f"Saved {translated_title}")
                             st.experimental_rerun()
 
                         if content:
-                            poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
+                            poll_type = determine_poll_type({'title': translated_title, 'description': translated_summary})
                             if poll_type == "yes_no":
                                 options = ["Yes", "No"]
                             else:
@@ -463,7 +487,7 @@ def main():
                                 options.append(custom_option)
 
                             hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
-                            create_social_media_share_buttons(article_url, entry.title, hashtag_options)
+                            create_social_media_share_buttons(article_url, translated_title, hashtag_options)
 
                             if options:
                                 vote_key = f"votes_{idx}"
@@ -477,7 +501,7 @@ def main():
                                 votes = st.session_state[vote_key]
                                 location_votes = st.session_state[location_key]
 
-                                question = generate_question({'title': entry.title, 'description': entry.summary})
+                                question = generate_question({'title': translated_title, 'description': translated_summary})
                                 st.write(question)
 
                                 voted_option = st.radio("UPROAR on this news:", hashtag_options, key=f"radio_{idx}")
