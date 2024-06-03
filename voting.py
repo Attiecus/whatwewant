@@ -138,6 +138,40 @@ def logout():
         cookies["user"] = ""
         cookies.save()
         st.experimental_rerun()
+def tutorial():
+    st.markdown("<h1 style='font-family: Garamond; font-weight: bold; font-size: 5em; text-align: center;'>-ECHO-</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>Welcome to ECHO!</h2>", unsafe_allow_html=True)
+    st.write("""
+    **ECHO** is a platform designed to give you a voice on trending news topics, especially in a world where voices are often unheard or suppressed by those in power. Here's how it works:
+    
+    1. **Browse News Articles**: Find news articles from various sources.
+    2. **UPROAR on News**: Vote on news articles by sharing your opinion through polls.
+    3. **See Results**: View how others have voted and the geographical distribution of votes.
+
+    **Why ECHO?**
+
+    In an era where the mainstream media is often controlled by powerful entities, it can be difficult for ordinary people to make their voices heard. ECHO empowers you to speak out on news channels about what you stand for, without the fear of being exposed or censored. Your voice matters, and ECHO ensures it is heard.
+
+    **Getting Started**:
+    - **Register**: Sign up with your email, or register anonymously to protect your identity.
+    - **Login**: Log in to start voting and saving articles.
+    
+    **Features**:
+    - **Search Articles**: Use the search bar to find articles by keywords.
+    - **Save Articles**: Save articles to read later.
+    - **Share Opinions**: Share your opinions on social media directly from the platform.
+
+    **Our Commitment**:
+    - **Anonymity**: Register anonymously if you wish, ensuring your identity is protected.
+    - **Freedom of Speech**: Share your opinions without fear of censorship.
+    - **Community Engagement**: See how others feel about the same topics and participate in a global conversation.
+
+    Enjoy using **ECHO** and make your voice heard!
+    """)
+
+    if st.button("Go to Login Page"):
+        st.session_state['page'] = "Login"
+        st.experimental_rerun()
 def main():
     # Set default mode
     if 'dark_mode' not in st.session_state:
