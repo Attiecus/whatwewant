@@ -15,7 +15,6 @@ from firebase_admin import credentials, auth
 from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
 from datetime import datetime, timedelta
 from PIL import Image
-from deep_translator import GoogleTranslator
 
 # Initialize cookie manager
 st.set_page_config(layout='wide')
@@ -38,10 +37,8 @@ def hash_password(password):
 def check_login():
     if "user" in st.session_state:
         return True
-    elif cookies.get("user"):
-        st.session_state["user"] = cookies["user"]
-        return True
-    return False
+    else:
+        return False
 
 # Login function using Firebase Authentication
 def login():
@@ -178,7 +175,7 @@ def main():
     async def fetch_article_content_async(session, url):
         async with session.get(url) as response:
             content = await response.read()
-            soup = BeautifulSoup(content, 'html.parser')  # Use html.parser for built-in parsing
+            soup = BeautifulSoup(content, 'lxml')  # Use lxml for faster parsing
 
             paragraphs = soup.find_all('p')
             content = ' '.join([para.get_text() for para in paragraphs]) if paragraphs else 'Content not available'
@@ -250,7 +247,7 @@ def main():
     def create_social_media_share_buttons(article_title, votes, options):
         website_url = "https://whatwewant.streamlit.app/"
         options_str = "%20".join(options)
-        twitter_url = f"https://twitter.com/intent/tweet?url={website_url}&text={article_title}&hashtags={options_str}"
+        twitter_url = f"https://twitter.com/intent/tweet?url={article_title}&text={website_url}&options={options_str}"
         facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
         linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
         instagram_url = f"https://www.instagram.com/?url={website_url}"
@@ -385,13 +382,14 @@ def main():
         "RTE": "https://www.rte.ie/rss/news.xml",
         "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
         "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
-        "Hürriyet": "https://www.hurriyet.com.tr/rss/anasayfa"
     }
 
     news_source = st.sidebar.selectbox("Select news source:", list(news_sources.keys()))
     feed_url = news_sources[news_source]
 
-    with st.spinner("Loading feed..."):
+    if st.button("Reload Feed"):
+        feed = feedparser.parse(feed_url)
+    else:
         feed = feedparser.parse(feed_url)
 
     show_voting_section = toggle_voting_section()
@@ -421,78 +419,37 @@ def main():
             urls = [entry.link for entry in filtered_entries]
             articles = asyncio.run(fetch_articles(urls))
 
-            # Select language for translation
-            languages = {
-                "English": "en",
-        "Arabic": "ar",
-        "Azerbaijani": "az",
-        "Chinese": "zh-CN",
-        "Danish": "da",
-        
-        "French": "fr",
-        "German": "de",
-        "Hindi": "hi",
-        "Japanese": "ja",
-        "Korean": "ko",
-        "Marathi": "mr",
-        "Norwegian": "no",
-        "Portuguese": "pt",
-        "Russian": "ru",
-        "Spanish": "es",
-        "Swedish": "sv",
-        "Turkish": "tr",
-        "Ukrainian": "uk"
-    }
-
-            selected_language = st.sidebar.selectbox("Select Language", list(languages.keys()))
-            target_language = languages[selected_language]
-
             for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
                 col = cols[idx % num_cols]
                 with col:
                     with st.container():
                         article_url = entry.link
 
-                        # Translate title and summary
-                        translated_title = GoogleTranslator(source='auto', target=target_language).translate(entry.title)
-                        translated_summary = GoogleTranslator(source='auto', target=target_language).translate(entry.summary)
-
                         card_color = "#444444" if dark_mode else "#f9f9f9"
                         text_color = "#ffffff" if dark_mode else "#000000"
 
                         card_html = f"""
-                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px; transition: transform 0.3s ease-in-out;">
-                            <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{translated_title}</a></h3>
-                            <p style="color: {text_color};">{translated_summary}</p>
+                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                            <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
+                            <p style="color: {text_color};">{entry.summary}</p>
                         """
                         if image:
                             card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
 
                         card_html += "</div>"
-
-                        # CSS for hover effect
-                        st.markdown("""
-                            <style>
-                                .card:hover {
-                                    transform: scale(1.05);
-                                }
-                            </style>
-                        """, unsafe_allow_html=True)
-
                         st.markdown(card_html, unsafe_allow_html=True)
-
 
                         if st.button("Save", key=f"save_{idx}"):
                             st.session_state.saved_posts.append({
-                                'title': translated_title,
-                                'summary': translated_summary,
+                                'title': entry.title,
+                                'summary': entry.summary,
                                 'link': article_url
                             })
-                            st.success(f"Saved {translated_title}")
+                            st.success(f"Saved {entry.title}")
                             st.experimental_rerun()
 
                         if content:
-                            poll_type = determine_poll_type({'title': translated_title, 'description': translated_summary})
+                            poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
                             if poll_type == "yes_no":
                                 options = ["Yes", "No"]
                             else:
@@ -501,30 +458,26 @@ def main():
                                 sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
                                 options = [entity[0] for entity in sorted_entities[:5]]
 
-                            # Translate options
-                            translated_options = [GoogleTranslator(source='auto', target=target_language).translate(option) for option in options]
-
                             custom_option = st.text_input(f"Enter a custom option for article {idx}:", key=f"custom_option_{idx}")
                             if custom_option:
-                                translated_custom_option = GoogleTranslator(source='auto', target=target_language).translate(custom_option)
-                                translated_options.append(translated_custom_option)
+                                options.append(custom_option)
 
-                            hashtag_options = [f"#{option.replace(' ', '')}" for option in translated_options]
-                            create_social_media_share_buttons(article_url, translated_title, hashtag_options)
+                            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+                            create_social_media_share_buttons(article_url, entry.title, hashtag_options)
 
-                            if translated_options:
+                            if options:
                                 vote_key = f"votes_{idx}"
                                 location_key = f"location_votes_{idx}"
 
                                 if vote_key not in st.session_state:
-                                    st.session_state[vote_key] = {option: 0 for option in translated_options}
+                                    st.session_state[vote_key] = {option: 0 for option in options}
                                 if location_key not in st.session_state:
                                     st.session_state[location_key] = {}
 
                                 votes = st.session_state[vote_key]
                                 location_votes = st.session_state[location_key]
 
-                                question = generate_question({'title': translated_title, 'description': translated_summary})
+                                question = generate_question({'title': entry.title, 'description': entry.summary})
                                 st.write(question)
 
                                 voted_option = st.radio("UPROAR on this news:", hashtag_options, key=f"radio_{idx}")
@@ -535,8 +488,7 @@ def main():
                                         if voted_option in votes:
                                             votes[voted_option] += 1
                                         else:
-                                            st.error("Invalid vote option. Please select a valid option.")
-                                            continue
+                                            votes[voted_option] = 1
                                         st.session_state[vote_key] = votes
 
                                         user_location = get_user_location(IPINFO_API_KEY)
