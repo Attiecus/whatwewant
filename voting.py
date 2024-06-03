@@ -499,7 +499,8 @@ def main():
                                         st.write("🔥UPROARED!✅ POWER-TO-YOU 🔥! ")
 
                                 with st.expander("Show/Hide Poll Results"):
-                                    if any count > 0 for count in votes.values():
+                                    if any(count > 0 for count in votes.values()):
+
                                         st.write("Current Poll Results:")
                                         total_votes = sum(votes.values())
                                         for option, count in votes.items():
