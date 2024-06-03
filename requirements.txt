@@ -13,3 +13,5 @@ asyncio==3.4.3
 lxml==5.2.2
 firebase-admin==6.5.0
 streamlit-cookies-manager==0.2.0
+deep-translator==1.11.4
+googletrans==3.0.0
