@@ -3,7 +3,7 @@ Requests==2.32.2
 
 streamlit==1.35.0
 spacy==3.7.4
-en-core-web-sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl#sha256=86cc141f63942d4b2c5fcee06630fd6f904788d2f0ab005cce45aadb8fb73889
+
 en-core-web-lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.7.1/en_core_web_lg-3.7.1-py3-none-any.whl#sha256=5b02d8f3a98fbcdf9a098f71c43d2ab26f709f0328cf52cda1993d6a137f0be6
 
 opencage==2.4.0
