@@ -34,11 +34,16 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # Check if user is logged in
+# Check if user is logged in
 def check_login():
     if "user" in st.session_state:
+        if "voted_articles" not in st.session_state:
+            voted_articles_cookie = cookies.get("voted_articles", "[]")  # Default to an empty JSON list
+            st.session_state["voted_articles"] = json.loads(voted_articles_cookie)  # Ensure it's a list
         return True
     else:
         return False
+
 
 # Login function using Firebase Authentication
 def login():
@@ -95,9 +100,11 @@ def logout():
         st.experimental_rerun()
 
 # Track vote
+# Track vote
 def track_vote(article_id):
     if "voted_articles" not in st.session_state:
         st.session_state["voted_articles"] = []
+
     if article_id not in st.session_state["voted_articles"]:
         st.session_state["voted_articles"].append(article_id)
         # Convert the list to a JSON string before setting it in cookies
@@ -107,6 +114,7 @@ def track_vote(article_id):
     else:
         st.warning("You have already voted on this article.")
         return False
+
 
 # Tutorial function
 def tutorial():
@@ -143,6 +151,7 @@ def tutorial():
     if st.button("Go to Login Page"):
         st.session_state['page'] = "Login"
 
+# Main application logic
 # Main application logic
 def main():
     # Set default mode
@@ -366,31 +375,34 @@ def main():
                 filtered_entries.append(entry)
         return filtered_entries
 
+  
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
 
     st.title("-ECHO-")
     st.header("HAVE YOUR SAY")
 
-    categories = ["All", "Politics", "Technology", "Sports", "Entertainment", "Health"]
-    selected_category = st.selectbox("Select Category", categories)
+    
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
     news_sources = {
-        "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
-        "RTE": "https://www.rte.ie/rss/news.xml",
-        "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
-        "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+    "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
+    "RTE": "https://www.rte.ie/rss/news.xml",
+    "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+    "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+    "Sky Sports": "https://www.skysports.com/rss/12040",  # Sky Sports RSS feed
+    "Business Insider": "https://www.businessinsider.com/rss"  # Business Insider RSS feed
     }
 
-    news_source = st.sidebar.selectbox("Select news source:", list(news_sources.keys()))
+    news_source = st.selectbox("Select news source:", list(news_sources.keys()))
     feed_url = news_sources[news_source]
 
     if st.button("Reload Feed"):
         feed = feedparser.parse(feed_url)
     else:
         feed = feedparser.parse(feed_url)
+
 
     show_voting_section = toggle_voting_section()
 
@@ -412,6 +424,7 @@ def main():
     if show_voting_section:
         filtered_entries = filter_articles_by_date(feed, days=1)
         filtered_entries = search_articles(feed, user_query)
+        #filtered_entries = filter_articles_by_category(filtered_entries, selected_category)
         if filtered_entries:
             num_cols = min(len(filtered_entries), 3)
             cols = st.columns(num_cols)
