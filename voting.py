@@ -62,27 +62,43 @@ def login():
             st.session_state["voted_articles"] = cookies.get("voted_articles", [])
             st.success("Logged in successfully!")
             cookies["user"] = username
-            cookies.save()
+            cookies.save(key="login_cookies_save")
             st.session_state['page'] = "Main"  # Set the page to Main after successful login
             st.experimental_rerun()
         except UserNotFoundError:
             st.error("Invalid email or password")
 
 # Register function using Firebase Authentication
+# Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
     
     if st.button("Register as Anonymous", key="anonymous_register_button"):
-        anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
-        try:
-            user = auth.create_user(uid=anonymous_id)
-            st.session_state["user"] = anonymous_id
-            st.session_state["voted_articles"] = []
-            st.success("Registered anonymously!")
-            cookies["user"] = anonymous_id
+        anonymous_id = cookies.get("anonymous_id")
+        if not anonymous_id:
+            anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
+            cookies["anonymous_id"] = anonymous_id
             cookies.save()
-            st.session_state['page'] = "Main"  # Set the page to Main after successful anonymous registration
-            st.experimental_rerun()
+        try:
+            # Check if the user already exists
+            try:
+                user = auth.get_user(anonymous_id)
+                st.warning("Anonymous user ID already exists. Logging in with existing ID.")
+                st.session_state["user"] = anonymous_id
+                st.session_state["voted_articles"] = json.loads(cookies.get("voted_articles", "[]"))
+                cookies["user"] = anonymous_id
+                cookies.save()
+                st.session_state['page'] = "Main"  # Set the page to Main after successful login
+                st.experimental_rerun()
+            except UserNotFoundError:
+                user = auth.create_user(uid=anonymous_id)
+                st.session_state["user"] = anonymous_id
+                st.session_state["voted_articles"] = []
+                st.success("Registered anonymously!")
+                cookies["user"] = anonymous_id
+                cookies.save()
+                st.session_state['page'] = "Main"  # Set the page to Main after successful anonymous registration
+                st.experimental_rerun()
         except EmailAlreadyExistsError as e:
             st.error(f"Error: {e}")
 
@@ -96,6 +112,7 @@ def register():
             except EmailAlreadyExistsError as e:
                 st.error(f"Error: {e}")
 
+
 # Logout function
 def logout():
     if st.sidebar.button("Logout"):
@@ -105,7 +122,7 @@ def logout():
         cookies.save()
         st.experimental_rerun()
 
-# Track vote
+
 def track_vote(article_id):
     if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
         st.session_state["voted_articles"] = []
@@ -121,7 +138,6 @@ def track_vote(article_id):
 
 # Tutorial function
 def tutorial():
-    st.markdown("<h1 style='font-family: Garamond; font-weight: bold; font-size: 5em; text-align: center;'>-ECHO-</h1>", unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center;'>Welcome to ECHO!</h2>", unsafe_allow_html=True)
     st.write("""
     **ECHO** is a platform designed to give you a voice on trending news topics, especially in a world where voices are often unheard or suppressed by those in power. Here's how it works:
@@ -151,7 +167,7 @@ def tutorial():
     Enjoy using **ECHO** and make your voice heard!
     """)
 
-    if st.button("Go to Login Page"):
+    if st.button("Read less"):
         st.session_state['page'] = "Login"
         st.experimental_rerun()
 
@@ -266,7 +282,16 @@ def create_poll_with_options(article_id, options):
     votes = st.session_state[vote_key]
 
     st.write("Choose your stance on this news:")
-
+    custom_option = st.text_input(f"Enter a custom option for this article:", key=f"custom_option_{article_id}_input")
+    if custom_option:
+        if st.button(f"Add custom option", key=f"add_custom_option_{article_id}_button"):
+            if custom_option not in options:
+                options.append(custom_option)
+                votes[custom_option] = 0
+            if track_vote(article_id):
+                votes[custom_option] += 1
+                st.session_state[vote_key] = votes
+                st.write(f"Your stance: {custom_option}")
     # Display poll options as buttons
     for option in options:
         if st.button(option, key=f"vote_button_{article_id}_{option}"):
@@ -274,6 +299,10 @@ def create_poll_with_options(article_id, options):
                 votes[option] += 1
                 st.session_state[vote_key] = votes
                 st.write(f"Your stance: {option}")
+
+    # Custom option input unique to each article
+    
+
     st.write("---")
 
     # Display poll results
@@ -285,27 +314,22 @@ def create_poll_with_options(article_id, options):
             st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
             st.progress(percentage / 100)
         st.write("---")
+
 def main():
     # Set default mode
     if 'dark_mode' not in st.session_state:
         st.session_state['dark_mode'] = False
-    
-    if 'page' not in st.session_state:
-        st.session_state['page'] = "Main"
 
-    # Redirect to the appropriate page
-    if st.session_state['page'] == "Login":
-        login()
-        register()
-        return
-
-    # User authentication
-    if not check_login():
-        if st.session_state['page'] != "Main":
-            return
-    else:
+    # Check login state using cookies
+    if check_login():
         st.sidebar.write(f"Welcome, {st.session_state['user']}!")
         logout()
+    else:
+        if 'page' not in st.session_state or st.session_state['page'] == "Login":
+            st.session_state['page'] = "Login"
+            login()
+            register()
+            return
 
     @st.cache_resource
     def load_spacy_model():
@@ -459,7 +483,6 @@ def main():
                 filtered_entries.append(entry)
         return filtered_entries
 
-
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
 
@@ -490,6 +513,11 @@ def main():
     with st.sidebar:
         st.header("Saved Articles")
         st.write("*Warning: Your saved articles are only for this session and will be deleted once the session is over! To ensure you have your articles saved, please sign up or log in.")
+        st.sidebar.header("About us:")
+        tut_button=st.sidebar.button("Read here")
+        if tut_button:
+            tutorial()
+
         if 'saved_posts' not in st.session_state:
             st.session_state.saved_posts = []
         saved_posts = st.session_state.saved_posts
@@ -561,10 +589,6 @@ def main():
                                 sorted_entities = sorted(entity_counts.items(), key=lambda x: 1, reverse=True)
                                 options = [entity[0] for entity in sorted_entities[:5]]
 
-                            custom_option = st.text_input(f"Enter a custom option for article {idx}:", key=f"custom_option_{idx}")
-                            if custom_option:
-                                options.append(custom_option)
-
                             hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
 
                             if options:
@@ -577,6 +601,7 @@ def main():
                                         st.experimental_rerun()
                             else:
                                 st.write("No relevant entities found for voting.")
+
                         else:
                             st.write("No content available for deeper analysis.")
         else:
