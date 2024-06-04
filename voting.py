@@ -76,6 +76,7 @@ def login():
 # Register function using Firebase Authentication
 # Register function using Firebase Authentication
 # Register function using Firebase Authentication
+# Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
     
@@ -111,7 +112,7 @@ def register():
     else:
         username = st.text_input("Email", key="register_email")
         password = st.text_input("Password", type="password", key="register_password")
-        if st.button("Register"):
+        if st.button("Register", key="register_button"):
             try:
                 user = auth.create_user(email=username, password=password)
                 st.success("Registered successfully! You can now log in.")
