@@ -15,7 +15,6 @@ from firebase_admin import credentials, auth
 from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
 from datetime import datetime, timedelta
 from PIL import Image
-from datetime import datetime, timedelta
 
 # Initialize cookie manager
 st.set_page_config(layout='wide')
@@ -72,7 +71,6 @@ def login():
 # Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
-    #anonymous = st.button("Register as Anonymous", key="anonymous_checkbox")
     
     if st.button("Register as Anonymous", key="anonymous_register_button"):
         anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
@@ -167,7 +165,7 @@ def filter_articles_by_date(feed, days=2):
     return filtered_entries
 
 def create_social_media_share_button(article_title, post_id):
-    website_url = f"https://whatwewant.streamlit.app/article/{post_id}"
+    website_url = f"https://voices.streamlit.app/article/{post_id}"
     twitter_url = f"https://twitter.com/intent/tweet?url={website_url}&text={article_title}"
     facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
     linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
@@ -247,7 +245,18 @@ def create_social_media_share_button(article_title, post_id):
     </style>
     """
     st.markdown(buttons_html, unsafe_allow_html=True)
-# Main application logic
+
+st.markdown("""
+    <style>
+    .stButton > button {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width: 50%;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
 def create_poll_with_options(article_id, options):
     vote_key = f"votes_{article_id}"
 
@@ -256,7 +265,7 @@ def create_poll_with_options(article_id, options):
 
     votes = st.session_state[vote_key]
 
-    st.write("Vote on this news:")
+    st.write("Choose your stance on this news:")
 
     # Display poll options as buttons
     for option in options:
@@ -264,7 +273,7 @@ def create_poll_with_options(article_id, options):
             if track_vote(article_id):
                 votes[option] += 1
                 st.session_state[vote_key] = votes
-                st.success(f"Voted for {option}")
+                st.write(f"Your stance: {option}")
     st.write("---")
 
     # Display poll results
@@ -276,8 +285,6 @@ def create_poll_with_options(article_id, options):
             st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
             st.progress(percentage / 100)
         st.write("---")
-
-# Example usage within the main application logic
 def main():
     # Set default mode
     if 'dark_mode' not in st.session_state:
@@ -297,10 +304,8 @@ def main():
         if st.session_state['page'] != "Main":
             return
     else:
-        st.sidebar.write(f"Welcome User (your temporary UiD), {st.session_state['user']}!")
+        st.sidebar.write(f"Welcome, {st.session_state['user']}!")
         logout()
-
-    IPINFO_API_KEY = 'f2439f60dfe99d'
 
     @st.cache_resource
     def load_spacy_model():
@@ -484,7 +489,7 @@ def main():
 
     with st.sidebar:
         st.header("Saved Articles")
-        st.write("*Warning:Your saved article are only for this session they will be deleted once the session is over! To ensure you have your articles saved please sign up or log in")
+        st.write("*Warning: Your saved articles are only for this session and will be deleted once the session is over! To ensure you have your articles saved, please sign up or log in.")
         if 'saved_posts' not in st.session_state:
             st.session_state.saved_posts = []
         saved_posts = st.session_state.saved_posts
@@ -553,7 +558,7 @@ def main():
                             else:
                                 relevant_entities = extract_relevant_entities(content)
                                 entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
-                                sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
+                                sorted_entities = sorted(entity_counts.items(), key=lambda x: 1, reverse=True)
                                 options = [entity[0] for entity in sorted_entities[:5]]
 
                             custom_option = st.text_input(f"Enter a custom option for article {idx}:", key=f"custom_option_{idx}")
@@ -563,7 +568,13 @@ def main():
                             hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
 
                             if options:
-                                create_poll_with_options(entry.link, hashtag_options)
+                                if check_login():
+                                    create_poll_with_options(entry.link, hashtag_options)
+                                else:
+                                    st.warning("Please log in or register to vote.")
+                                    if st.button("Login/Register", key=f"login_register_{idx}"):
+                                        st.session_state['page'] = "Login"
+                                        st.experimental_rerun()
                             else:
                                 st.write("No relevant entities found for voting.")
                         else:
