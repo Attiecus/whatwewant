@@ -34,8 +34,6 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # Check if user is logged in
-# Check if user is logged in
-# Check if user is logged in
 def check_login():
     user_cookie = cookies.get("user")
     if user_cookie:
@@ -49,6 +47,7 @@ def check_login():
             st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
         return True
     return False
+
 
 
 
@@ -75,10 +74,6 @@ def login():
         except UserNotFoundError:
             st.error("Invalid email or password")
 
-# Register function using Firebase Authentication
-# Register function using Firebase Authentication
-# Register function using Firebase Authentication
-# Register function using Firebase Authentication
 # Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
@@ -121,6 +116,7 @@ def register():
                 st.success("Registered successfully! You can now log in.")
             except EmailAlreadyExistsError as e:
                 st.error(f"Error: {e}")
+
 
 
    
