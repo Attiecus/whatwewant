@@ -35,6 +35,7 @@ def hash_password(password):
 
 # Check if user is logged in
 # Check if user is logged in
+# Check if user is logged in
 def check_login():
     user_cookie = cookies.get("user")
     if user_cookie:
@@ -48,6 +49,7 @@ def check_login():
             st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
         return True
     return False
+
 
 
 # Login function using Firebase Authentication
@@ -73,6 +75,7 @@ def login():
         except UserNotFoundError:
             st.error("Invalid email or password")
 
+# Register function using Firebase Authentication
 # Register function using Firebase Authentication
 # Register function using Firebase Authentication
 # Register function using Firebase Authentication
