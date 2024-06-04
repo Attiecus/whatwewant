@@ -34,19 +34,21 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # Check if user is logged in
+# Check if user is logged in
 def check_login():
-    if "user" in st.session_state:
-        if "voted_articles" not in st.session_state:
-            voted_articles_cookie = cookies.get("voted_articles", "[]")  # Default to an empty JSON list
-            try:
-                st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
-                if not isinstance(st.session_state["voted_articles"], list):
-                    st.session_state["voted_articles"] = []
-            except json.JSONDecodeError:
-                st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
+    user_cookie = cookies.get("user")
+    if user_cookie:
+        st.session_state["user"] = user_cookie
+        voted_articles_cookie = cookies.get("voted_articles", "[]")  # Default to an empty JSON list
+        try:
+            st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
+            if not isinstance(st.session_state["voted_articles"], list):
+                st.session_state["voted_articles"] = []
+        except json.JSONDecodeError:
+            st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
         return True
-    else:
-        return False
+    return False
+
 
 # Login function using Firebase Authentication
 def login():
@@ -71,6 +73,7 @@ def login():
         except UserNotFoundError:
             st.error("Invalid email or password")
 
+# Register function using Firebase Authentication
 # Register function using Firebase Authentication
 # Register function using Firebase Authentication
 def register():
@@ -114,6 +117,9 @@ def register():
                 st.success("Registered successfully! You can now log in.")
             except EmailAlreadyExistsError as e:
                 st.error(f"Error: {e}")
+
+
+   
 
 
 # Logout function
