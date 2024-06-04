@@ -62,7 +62,10 @@ def login():
             st.session_state["voted_articles"] = cookies.get("voted_articles", [])
             st.success("Logged in successfully!")
             cookies["user"] = username
-            cookies.save(key="login_cookies_save")
+            cookies.save(
+
+                
+            )
             st.session_state['page'] = "Main"  # Set the page to Main after successful login
             st.experimental_rerun()
         except UserNotFoundError:
