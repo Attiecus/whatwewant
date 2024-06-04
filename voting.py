@@ -15,6 +15,7 @@ from firebase_admin import credentials, auth
 from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
 from datetime import datetime, timedelta
 from PIL import Image
+from datetime import datetime, timedelta
 
 # Initialize cookie manager
 st.set_page_config(layout='wide')
@@ -34,7 +35,6 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # Check if user is logged in
-# Check if user is logged in
 def check_login():
     if "user" in st.session_state:
         if "voted_articles" not in st.session_state:
@@ -48,7 +48,6 @@ def check_login():
         return True
     else:
         return False
-
 
 # Login function using Firebase Authentication
 def login():
@@ -65,26 +64,30 @@ def login():
             st.success("Logged in successfully!")
             cookies["user"] = username
             cookies.save()
+            st.session_state['page'] = "Main"  # Set the page to Main after successful login
+            st.experimental_rerun()
         except UserNotFoundError:
             st.error("Invalid email or password")
 
 # Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
-    anonymous = st.checkbox("Register as Anonymous", key="anonymous_checkbox")
+    #anonymous = st.button("Register as Anonymous", key="anonymous_checkbox")
     
-    if anonymous:
-        if st.button("Register Anonymously"):
-            anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
-            try:
-                user = auth.create_user(uid=anonymous_id)
-                st.session_state["user"] = anonymous_id
-                st.session_state["voted_articles"] = []
-                st.success("Registered anonymously!")
-                cookies["user"] = anonymous_id
-                cookies.save()
-            except EmailAlreadyExistsError as e:
-                st.error(f"Error: {e}")
+    if st.button("Register as Anonymous", key="anonymous_register_button"):
+        anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
+        try:
+            user = auth.create_user(uid=anonymous_id)
+            st.session_state["user"] = anonymous_id
+            st.session_state["voted_articles"] = []
+            st.success("Registered anonymously!")
+            cookies["user"] = anonymous_id
+            cookies.save()
+            st.session_state['page'] = "Main"  # Set the page to Main after successful anonymous registration
+            st.experimental_rerun()
+        except EmailAlreadyExistsError as e:
+            st.error(f"Error: {e}")
+
     else:
         username = st.text_input("Email", key="register_email")
         password = st.text_input("Password", type="password", key="register_password")
@@ -97,7 +100,7 @@ def register():
 
 # Logout function
 def logout():
-    if st.button("Logout"):
+    if st.sidebar.button("Logout"):
         st.session_state.pop("user")
         st.session_state.pop("voted_articles")
         cookies["user"] = ""
@@ -105,21 +108,18 @@ def logout():
         st.experimental_rerun()
 
 # Track vote
-# Track vote
 def track_vote(article_id):
     if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
         st.session_state["voted_articles"] = []
 
     if article_id not in st.session_state["voted_articles"]:
         st.session_state["voted_articles"].append(article_id)
-        # Convert the list to a JSON string before setting it in cookies
         cookies["voted_articles"] = json.dumps(st.session_state["voted_articles"])
         cookies.save()
         return True
     else:
         st.warning("You have already voted on this article.")
         return False
-
 
 # Tutorial function
 def tutorial():
@@ -155,29 +155,149 @@ def tutorial():
 
     if st.button("Go to Login Page"):
         st.session_state['page'] = "Login"
+        st.experimental_rerun()
 
+def filter_articles_by_date(feed, days=2):
+    filtered_entries = []
+    current_time = datetime.now()
+    for entry in feed.entries:
+        published_time = datetime(*entry.published_parsed[:6])
+        if current_time - timedelta(days=days) <= published_time <= current_time:
+            filtered_entries.append(entry)
+    return filtered_entries
+
+def create_social_media_share_button(article_title, post_id):
+    website_url = f"https://whatwewant.streamlit.app/article/{post_id}"
+    twitter_url = f"https://twitter.com/intent/tweet?url={website_url}&text={article_title}"
+    facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
+    linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
+    instagram_url = f"https://www.instagram.com/?url={website_url}"
+
+    buttons_html = f"""
+    <div class="dropdown" style="display: inline-block; margin-left: 10px;">
+        <button class="dropbtn">
+            <img src="https://img.icons8.com/material-outlined/24/000000/share.png" alt="Share Icon" style="vertical-align: middle; margin-right: 5px;"/>
+            Share
+        </button>
+        <div class="dropdown-content">
+            <a href="{twitter_url}" target="_blank">Twitter</a>
+            <a href="{facebook_url}" target="_blank">Facebook</a>
+            <a href="{linkedin_url}" target="_blank">LinkedIn</a>
+            <a href="{instagram_url}" target="_blank">Instagram</a>
+        </div>
+    </div>
+
+    <style>
+        .dropdown {{
+            position: relative;
+            display: inline-block;
+        }}
+
+        .dropbtn {{
+            background-color: white;
+            color: black;
+            padding: 10px 16px;
+            font-size: 14px;
+            border: none;
+            cursor: pointer;
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+        }}
+
+        .dropdown-content {{
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 10px;
+        }}
+
+        .dropdown-content a {{
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }}
+
+        .dropdown-content a:hover {{
+            background-color: #f1f1f1;
+        }}
+
+        .dropdown:hover .dropdown-content {{
+            display: block;
+        }}
+
+        .dropdown:hover .dropbtn {{
+            background-color: #e6e6e6;
+        }}
+
+        .card-container {{
+            position: relative;
+        }}
+
+        .button-container {{
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            margin-top: 10px;
+        }}
+    </style>
+    """
+    st.markdown(buttons_html, unsafe_allow_html=True)
 # Main application logic
-# Main application logic
+def create_poll_with_options(article_id, options):
+    vote_key = f"votes_{article_id}"
+
+    if vote_key not in st.session_state:
+        st.session_state[vote_key] = {option: 0 for option in options}
+
+    votes = st.session_state[vote_key]
+
+    st.write("Vote on this news:")
+
+    # Display poll options as buttons
+    for option in options:
+        if st.button(option, key=f"vote_button_{article_id}_{option}"):
+            if track_vote(article_id):
+                votes[option] += 1
+                st.session_state[vote_key] = votes
+                st.success(f"Voted for {option}")
+    st.write("---")
+
+    # Display poll results
+    if any(count > 0 for count in votes.values()):
+        st.write("Current Poll Results:")
+        total_votes = sum(votes.values())
+        for option, count in votes.items():
+            percentage = count / total_votes * 100 if total_votes != 0 else 0
+            st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
+            st.progress(percentage / 100)
+        st.write("---")
+
+# Example usage within the main application logic
 def main():
     # Set default mode
     if 'dark_mode' not in st.session_state:
         st.session_state['dark_mode'] = False
     
     if 'page' not in st.session_state:
-        st.session_state['page'] = "Tutorial"
+        st.session_state['page'] = "Main"
 
+    # Redirect to the appropriate page
     if st.session_state['page'] == "Login":
         login()
         register()
-    else:
-        tutorial()
         return
 
     # User authentication
     if not check_login():
-        return
+        if st.session_state['page'] != "Main":
+            return
     else:
-        st.sidebar.write(f"Welcome, {st.session_state['user']}!")
+        st.sidebar.write(f"Welcome User (your temporary UiD), {st.session_state['user']}!")
         logout()
 
     IPINFO_API_KEY = 'f2439f60dfe99d'
@@ -220,17 +340,6 @@ def main():
         entities = [ent.text for ent in doc.ents if ent.label_ in ['PERSON', 'ORG', 'GPE']]
         return list(set(entities))
 
-    def generate_question(article):
-        title = article['title']
-        description = article['description'] or ''
-        nlp = load_spacy_model()
-        doc = nlp(title + " " + description)
-        questions = []
-        for sent in doc.sents:
-            if len(sent.ents) > 0:
-                questions.append(f"What are your thoughts on this topic: '{sent}'?")
-        return questions[0] if questions else "What do you think about this news?"
-
     def determine_poll_type(article):
         if "policy" in article['title'].lower() or "election" in article['title'].lower():
             return "yes_no"
@@ -257,32 +366,6 @@ def main():
                 for _ in range(votes):
                     data.append({'lat': lat, 'lon': lon})
         return data
-
-    def create_social_media_share_buttons(article_title, votes, options):
-        website_url = "https://whatwewant.streamlit.app/"
-        options_str = "%20".join(options)
-        twitter_url = f"https://twitter.com/intent/tweet?url={article_title}&text={website_url}&options={options_str}"
-        facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
-        linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
-        instagram_url = f"https://www.instagram.com/?url={website_url}"
-
-        buttons_html = f"""
-        <div style="display: flex; gap: 10px;">
-            <a href="{twitter_url}" target="_blank">
-                <img src="https://th.bing.com/th/id/OIP.OiRP0Wt_nlImTXz5w45aRQHaHa?rs=1&pid=ImgDetMain" alt="X logo" style="width: 48px; height: 48px;"/>
-            </a>
-            <a href="{facebook_url}" target="_blank">
-                <img src="https://img.icons8.com/fluent/48/000000/facebook-new.png" alt="Facebook logo" style="width: 48px; height: 48px;"/>
-            </a>
-            <a href="{linkedin_url}" target="_blank">
-                <img src="https://img.icons8.com/fluent/48/000000/linkedin.png" alt="LinkedIn logo" style="width: 48px; height: 48px;"/>
-            </a>
-            <a href="{instagram_url}" target="_blank">
-                <img src="https://img.icons8.com/fluent/48/000000/instagram-new.png" alt="Instagram logo" style="width: 48px; height: 48px;"/>
-            </a>
-        </div>
-        """
-        st.markdown(buttons_html, unsafe_allow_html=True)
 
     def toggle_voting_section():
         if 'show_voting_section' not in st.session_state:
@@ -362,42 +445,31 @@ def main():
             st.markdown(light_css, unsafe_allow_html=True)
         st.markdown(css, unsafe_allow_html=True)
 
-    def search_articles(feed, query):
+    def search_articles(entries, query):
         if not query:
-            return feed.entries
+            return entries
         filtered_entries = []
-        for entry in feed.entries:
+        for entry in entries:
             if query.lower() in entry.title.lower() or query.lower() in entry.summary.lower():
                 filtered_entries.append(entry)
         return filtered_entries
 
-    def filter_articles_by_date(feed, days=1):
-        filtered_entries = []
-        current_time = datetime.now()
-        for entry in feed.entries:
-            published_time = datetime(*entry.published_parsed[:6])
-            if current_time - timedelta(days=days) <= published_time <= current_time:
-                filtered_entries.append(entry)
-        return filtered_entries
 
-  
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
 
     st.title("-ECHO-")
     st.header("HAVE YOUR SAY")
 
-    
-
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
     news_sources = {
-    "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
-    "RTE": "https://www.rte.ie/rss/news.xml",
-    "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
-    "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
-    "Sky Sports": "https://www.skysports.com/rss/12040",  # Sky Sports RSS feed
-    "Business Insider": "https://www.businessinsider.com/rss"  # Business Insider RSS feed
+        "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+        "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
+        "RTE": "https://www.rte.ie/rss/news.xml",
+        "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+        "Sky Sports": "https://www.skysports.com/rss/12040",  # Sky Sports RSS feed
+        "Business Insider": "https://www.businessinsider.com/rss"  # Business Insider RSS feed
     }
 
     news_source = st.selectbox("Select news source:", list(news_sources.keys()))
@@ -408,11 +480,11 @@ def main():
     else:
         feed = feedparser.parse(feed_url)
 
-
     show_voting_section = toggle_voting_section()
 
     with st.sidebar:
         st.header("Saved Articles")
+        st.write("*Warning:Your saved article are only for this session they will be deleted once the session is over! To ensure you have your articles saved please sign up or log in")
         if 'saved_posts' not in st.session_state:
             st.session_state.saved_posts = []
         saved_posts = st.session_state.saved_posts
@@ -427,121 +499,77 @@ def main():
             st.write("No articles saved.")
 
     if show_voting_section:
-         filtered_entries = filter_articles_by_date(feed, days=1)
-    filtered_entries = search_articles(feed, user_query)
-    #filtered_entries = filter_articles_by_category(filtered_entries, selected_category)
-    if filtered_entries:
-        num_cols = min(len(filtered_entries), 3)
-        cols = st.columns(num_cols)
+        # Filter articles by date (past 2 days)
+        filtered_entries = filter_articles_by_date(feed, days=2)
+        # Further filter articles based on user query
+        filtered_entries = search_articles(filtered_entries, user_query)
+        if filtered_entries:
+            num_cols = min(len(filtered_entries), 3)
+            cols = st.columns(num_cols)
 
-        urls = [entry.link for entry in filtered_entries]
-        articles = asyncio.run(fetch_articles(urls))
+            urls = [entry.link for entry in filtered_entries]
+            articles = asyncio.run(fetch_articles(urls))
 
-        for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
-            col = cols[idx % num_cols]
-            with col:
-                with st.container():
-                    article_url = entry.link
+            for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
+                col = cols[idx % num_cols]
+                with col:
+                    with st.container():
+                        article_url = entry.link
+                        post_id = hashlib.md5(article_url.encode()).hexdigest()  # Generate unique post ID
 
-                    card_color = "#444444" if dark_mode else "#f9f9f9"
-                    text_color = "#ffffff" if dark_mode else "#000000"
+                        card_color = "#444444" if dark_mode else "#f9f9f9"
+                        text_color = "#ffffff" if dark_mode else "#000000"
 
-                    card_html = f"""
-                    <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                        <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
-                        <p style="color: {text_color};">{entry.summary}</p>
-                    """
-                    if image:
-                        card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
+                        card_html = f"""
+                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                            <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
+                            <p style="color: {text_color};">{entry.summary}</p>
+                        """
+                        if image:
+                            card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
 
-                    card_html += "</div>"
-                    st.markdown(card_html, unsafe_allow_html=True)
+                        card_html += "</div>"
+                        st.markdown(card_html, unsafe_allow_html=True)
 
-                    if st.button("Save", key=f"save_{idx}"):
-                        st.session_state.saved_posts.append({
-                            'title': entry.title,
-                            'summary': entry.summary,
-                            'link': article_url
-                        })
-                        st.success(f"Saved {entry.title}")
-                        st.experimental_rerun()
+                        col1, col2, col3 = st.columns([1, 1, 1])
+                        
+                        with col1:
+                            if st.button("Save", key=f"save_{idx}"):
+                                st.session_state.saved_posts.append({
+                                    'title': entry.title,
+                                    'summary': entry.summary,
+                                    'link': article_url
+                                })
+                                st.success(f"Saved {entry.title}")
+                                st.experimental_rerun()
+                        
+                        with col2:
+                            create_social_media_share_button(entry.title, post_id)
 
-                    if content:
-                        poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
-                        if poll_type == "yes_no":
-                            options = ["Yes", "No"]
+                        if content:
+                            poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
+                            if poll_type == "yes_no":
+                                options = ["Yes", "No"]
+                            else:
+                                relevant_entities = extract_relevant_entities(content)
+                                entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
+                                sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
+                                options = [entity[0] for entity in sorted_entities[:5]]
+
+                            custom_option = st.text_input(f"Enter a custom option for article {idx}:", key=f"custom_option_{idx}")
+                            if custom_option:
+                                options.append(custom_option)
+
+                            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+
+                            if options:
+                                create_poll_with_options(entry.link, hashtag_options)
+                            else:
+                                st.write("No relevant entities found for voting.")
                         else:
-                            relevant_entities = extract_relevant_entities(content)
-                            entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
-                            sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
-                            options = [entity[0] for entity in sorted_entities[:5]]
-
-                        custom_option = st.text_input(f"Enter a custom option for article {idx}:", key=f"custom_option_{idx}")
-                        if custom_option:
-                            options.append(custom_option)
-
-                        hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
-                        create_social_media_share_buttons(article_url, entry.title, hashtag_options)
-
-                        if options:
-                            vote_key = f"votes_{idx}"
-                            location_key = f"location_votes_{idx}"
-
-                            if vote_key not in st.session_state:
-                                st.session_state[vote_key] = {option: 0 for option in options}
-                            if location_key not in st.session_state:
-                                st.session_state[location_key] = {}
-
-                            votes = st.session_state[vote_key]
-                            location_votes = st.session_state[location_key]
-
-                            question = generate_question({'title': entry.title, 'description': entry.summary})
-                            st.write(question)
-
-                            voted_option = st.radio("UPROAR on this news:", hashtag_options, key=f"radio_{idx}")
-
-                            if st.button("UPROAR", key=f"vote_{idx}"):
-                                article_id = entry.link
-                                if track_vote(article_id):
-                                    if voted_option in votes:
-                                        votes[voted_option] += 1
-                                    else:
-                                        votes[voted_option] = 1
-                                    st.session_state[vote_key] = votes
-
-                                    user_location = get_user_location(IPINFO_API_KEY)
-                                    country = user_location.get('country', 'Unknown')
-
-                                    if country not in location_votes:
-                                        location_votes[country] = 1
-                                    else:
-                                        location_votes[country] += 1
-                                    st.session_state[location_key] = location_votes
-
-                                    st.write("🔥UPROARED!✅ POWER-TO-YOU 🔥! ")
-
-                            with st.expander("Show/Hide Poll Results"):
-                                if any(count > 0 for count in votes.values()):
-                                    st.write("Current Poll Results:")
-                                    total_votes = sum(votes.values())
-                                    for option, count in votes.items():
-                                        percentage = count / total_votes * 100 if total_votes != 0 else 0
-                                        st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
-                                        st.progress(percentage / 100)
-                                    st.write("---")
-
-                                    st.write("Votes by Country:")
-                                    for country, count in location_votes.items():
-                                        st.write(f"{country}: {count} votes")
-
-                                st.write("---")
-
-                        else:
-                            st.write("No relevant entities found for voting.")
-                    else:
-                        st.write("No content available for deeper analysis.")
-    else:
-        st.error("Failed to fetch trending news.")
+                            st.write("No content available for deeper analysis.")
+        else:
+            st.error("Failed to fetch trending news.")
 
 st.markdown("""
 <style>
