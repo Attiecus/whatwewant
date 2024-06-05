@@ -599,8 +599,8 @@ def main():
                                 if check_login():
                                     create_poll_with_options(entry.link, hashtag_options)
                                 else:
-                                    st.warning("Please log in or register to vote.")
-                                    if st.button("Login/Register", key=f"login_register_{idx}"):
+                                    st.warning("Please log in or register to have your say")
+                                    if st.button("Login/Register (Dw its all anonymous)", key=f"login_register_{idx}"):
                                         st.session_state['page'] = "Login"
                                         st.experimental_rerun()
                             else:
