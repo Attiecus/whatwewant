@@ -326,11 +326,14 @@ def main():
         st.sidebar.write(f"Welcome, {st.session_state['user']}!")
         logout()
     else:
-        if 'page' not in st.session_state or st.session_state['page'] == "Login":
-            st.session_state['page'] = "Login"
-            login()
-            register()
-            return
+        if 'page' not in st.session_state:
+            st.session_state['page'] = "Main"
+
+    if st.session_state['page'] == "Login":
+        login()
+        register()
+        return
+
 
     @st.cache_resource
     def load_spacy_model():
