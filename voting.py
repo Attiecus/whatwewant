@@ -165,6 +165,16 @@ def create_poll_with_options(article_id, options):
             st.progress(percentage / 100)
         st.write("---")
 
+# Define filter_articles_by_date function
+def filter_articles_by_date(feed, days=2):
+    filtered_entries = []
+    current_time = datetime.now()
+    for entry in feed.entries:
+        published_time = datetime(*entry.published_parsed[:6])
+        if current_time - timedelta(days=days) <= published_time <= current_time:
+            filtered_entries.append(entry)
+    return filtered_entries
+
 # Main function
 def main():
     # Set default mode
@@ -483,3 +493,4 @@ st.markdown("""
 
 if __name__ == "__main__":
     main()
+
