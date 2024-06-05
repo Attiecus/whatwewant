@@ -440,7 +440,7 @@ def main():
             h1 {
                 font-family: 'Garamond';
                 font-weight: bold;
-                font-size: 5em;
+                font-size: 7em;
                 text-align: center;
             }
             h2 {
@@ -514,8 +514,8 @@ def main():
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
 
-    st.title("-ECHO-")
-    st.header("HAVE YOUR SAY")
+    st.title(" -ECHO-")
+    st.header(" HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
