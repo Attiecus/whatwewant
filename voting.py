@@ -54,7 +54,7 @@ def login():
     st.markdown("<h2 style='text-align: center;'>Login</h2>", unsafe_allow_html=True)
     username = st.text_input("Email", key="login_email")
     password = st.text_input("Password", type="password", key="login_password")
-    if st.button("Login"):
+    if st.button("Login", key="login_button"):
         try:
             user = auth.get_user_by_email(username)
             user_token = auth.create_custom_token(user.uid)
@@ -62,17 +62,13 @@ def login():
             st.session_state["voted_articles"] = cookies.get("voted_articles", [])
             st.success("Logged in successfully!")
             cookies["user"] = username
-            cookies.save(
-
-                
-            )
+            cookies.save()
             st.session_state['page'] = "Main"  # Set the page to Main after successful login
             st.experimental_rerun()
         except UserNotFoundError:
             st.error("Invalid email or password")
 
-# Register function using Firebase Authentication
-# Register function using Firebase Authentication
+
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
     
@@ -108,7 +104,7 @@ def register():
     else:
         username = st.text_input("Email", key="register_email")
         password = st.text_input("Password", type="password", key="register_password")
-        if st.button("Register"):
+        if st.button("Register", key="register_button"):
             try:
                 user = auth.create_user(email=username, password=password)
                 st.success("Registered successfully! You can now log in.")
@@ -116,14 +112,16 @@ def register():
                 st.error(f"Error: {e}")
 
 
+
 # Logout function
 def logout():
-    if st.sidebar.button("Logout"):
+    if st.sidebar.button("Logout", key="logout_button"):
         st.session_state.pop("user")
         st.session_state.pop("voted_articles")
         cookies["user"] = ""
         cookies.save()
         st.experimental_rerun()
+
 
 
 def track_vote(article_id):
@@ -295,6 +293,7 @@ def create_poll_with_options(article_id, options):
                 votes[custom_option] += 1
                 st.session_state[vote_key] = votes
                 st.write(f"Your stance: {custom_option}")
+
     # Display poll options as buttons
     for option in options:
         if st.button(option, key=f"vote_button_{article_id}_{option}"):
@@ -302,9 +301,6 @@ def create_poll_with_options(article_id, options):
                 votes[option] += 1
                 st.session_state[vote_key] = votes
                 st.write(f"Your stance: {option}")
-
-    # Custom option input unique to each article
-    
 
     st.write("---")
 
@@ -317,6 +313,9 @@ def create_poll_with_options(article_id, options):
             st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
             st.progress(percentage / 100)
         st.write("---")
+
+
+
 
 def main():
     # Set default mode
@@ -531,6 +530,7 @@ def main():
                     st.experimental_rerun()
                 st.markdown(f"### [{post['title']}]({post['link']})")
                 st.markdown(f"{post['summary']}")
+
         else:
             st.write("No articles saved.")
 
