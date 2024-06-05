@@ -35,21 +35,18 @@ def hash_password(password):
 
 # Check if user is logged in
 def check_login():
-    user_cookie = cookies.get("user")
-    if user_cookie:
-        st.session_state["user"] = user_cookie
-        voted_articles_cookie = cookies.get("voted_articles", "[]")  # Default to an empty JSON list
-        try:
-            st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
-            if not isinstance(st.session_state["voted_articles"], list):
-                st.session_state["voted_articles"] = []
-        except json.JSONDecodeError:
-            st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
+    if "user" in st.session_state:
+        if "voted_articles" not in st.session_state:
+            voted_articles_cookie = cookies.get("voted_articles", "[]")  # Default to an empty JSON list
+            try:
+                st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
+                if not isinstance(st.session_state["voted_articles"], list):
+                    st.session_state["voted_articles"] = []
+            except json.JSONDecodeError:
+                st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
         return True
-    return False
-
-
-
+    else:
+        return False
 
 # Login function using Firebase Authentication
 def login():
@@ -74,6 +71,7 @@ def login():
         except UserNotFoundError:
             st.error("Invalid email or password")
 
+# Register function using Firebase Authentication
 # Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
@@ -110,16 +108,12 @@ def register():
     else:
         username = st.text_input("Email", key="register_email")
         password = st.text_input("Password", type="password", key="register_password")
-        if st.button("Register", key="register_button"):
+        if st.button("Register"):
             try:
                 user = auth.create_user(email=username, password=password)
                 st.success("Registered successfully! You can now log in.")
             except EmailAlreadyExistsError as e:
                 st.error(f"Error: {e}")
-
-
-
-   
 
 
 # Logout function
