@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 
 # Initialize cookie manager
-st.set_page_config(layout='wide')
+st.set_page_config(layout='wide',page_title='Echo')
 
 # Check if Firebase app is already initialized
 if not firebase_admin._apps:
