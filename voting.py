@@ -118,7 +118,7 @@ def register():
                 except EmailAlreadyExistsError as e:
                     st.error(f"Error: {e}")
     except st.errors.DuplicateWidgetID:
-        st.warning("An error occurred with the widgets. Please click the register button again to retry.")
+        st.warning(". Please click the register button again to confirm.")
 
 
 # Logout function
