@@ -570,7 +570,7 @@ def main():
 
                         col1, col2, col3 = st.columns([1, 1, 1])
                         
-                        with col1:
+                        with col3:
                             if st.button("Save", key=f"save_{idx}"):
                                 st.session_state.saved_posts.append({
                                     'title': entry.title,
@@ -580,7 +580,7 @@ def main():
                                 st.success(f"Saved {entry.title}")
                                 st.experimental_rerun()
                         
-                        with col2:
+                        with col1:
                             create_social_media_share_button(entry.title, post_id)
 
                         if content:
