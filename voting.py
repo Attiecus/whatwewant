@@ -132,11 +132,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    document.body.addEventListener('touchstart', function(e) {
+    document.addEventListener('touchstart', function(e) {
         touchstartY = e.changedTouches[0].screenY;
     }, false);
 
-    document.body.addEventListener('touchend', function(e) {
+    document.addEventListener('touchend', function(e) {
         touchendY = e.changedTouches[0].screenY;
         checkDirection();
     }, false);
@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 """
 
-st.components.v1.html(reload_script)
+st.components.v1.html(reload_script, height=0)
 
 
 # Logout function
