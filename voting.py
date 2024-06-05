@@ -74,7 +74,6 @@ def login():
             st.error("Invalid email or password")
 
 # Register function using Firebase Authentication
-# Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
     
@@ -118,7 +117,34 @@ def register():
                 except EmailAlreadyExistsError as e:
                     st.error(f"Error: {e}")
     except st.errors.DuplicateWidgetID:
-        st.warning(". Please click the register button again to confirm.")
+        st.warning("An error occurred with the widgets. Please click the register button again to retry.")
+
+# Add JavaScript for page reload on drag down
+reload_script = """
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let touchstartY = 0;
+    let touchendY = 0;
+
+    function checkDirection() {
+        if (touchendY > touchstartY) {
+            location.reload();
+        }
+    }
+
+    document.body.addEventListener('touchstart', function(e) {
+        touchstartY = e.changedTouches[0].screenY;
+    }, false);
+
+    document.body.addEventListener('touchend', function(e) {
+        touchendY = e.changedTouches[0].screenY;
+        checkDirection();
+    }, false);
+});
+</script>
+"""
+
+st.components.v1.html(reload_script)
 
 
 # Logout function
