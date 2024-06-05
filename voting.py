@@ -21,8 +21,12 @@ st.set_page_config(layout='wide')
 
 # Check if Firebase app is already initialized
 if not firebase_admin._apps:
-    cred = credentials.Certificate("echo-73aeb-firebase-adminsdk-5cxbo-01aa7691b8.json")
-    firebase_admin.initialize_app(cred)
+    try:
+        cred = credentials.Certificate("echo-73aeb-firebase-adminsdk-5cxbo-01aa7691b8.json")
+        firebase_admin.initialize_app(cred)
+    except ValueError as e:
+        st.error(f"Firebase initialization error: {e}")
+        st.stop()
 
 # Initialize cookie manager with password
 cookies = EncryptedCookieManager(prefix="echo_app_", password="this_is_a_secret_key")
@@ -68,7 +72,7 @@ def login():
         except UserNotFoundError:
             st.error("Invalid email or password")
 
-
+# Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
     
@@ -110,8 +114,6 @@ def register():
                 st.success("Registered successfully! You can now log in.")
             except EmailAlreadyExistsError as e:
                 st.error(f"Error: {e}")
-
-
 
 # Logout function
 def logout():
