@@ -15,9 +15,10 @@ from firebase_admin import credentials, auth
 from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
 from datetime import datetime, timedelta
 from PIL import Image
+from urllib.parse import urlencode, parse_qs, urlparse
 
 # Initialize cookie manager
-st.set_page_config(layout='wide',page_title='Echo')
+st.set_page_config(layout='wide', page_title='Echo')
 
 # Check if Firebase app is already initialized
 if not firebase_admin._apps:
@@ -182,7 +183,7 @@ def filter_articles_by_date(feed, days=2):
     return filtered_entries
 
 def create_social_media_share_button(article_title, post_id):
-    website_url = f"https://voices.streamlit.app/article/{post_id}"
+    website_url = f"https://voices.streamlit.app?post_id={post_id}"
     twitter_url = f"https://twitter.com/intent/tweet?url={website_url}&text={article_title}"
     facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
     linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
@@ -262,7 +263,6 @@ def create_social_media_share_button(article_title, post_id):
     </style>
     """
     st.markdown(buttons_html, unsafe_allow_html=True)
-
 st.markdown("""
     <style>
     .stButton > button {
@@ -273,7 +273,6 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
-
 def create_poll_with_options(article_id, options):
     vote_key = f"votes_{article_id}"
 
@@ -293,7 +292,7 @@ def create_poll_with_options(article_id, options):
                 votes[custom_option] += 1
                 st.session_state[vote_key] = votes
                 st.write(f"Your stance: {custom_option}")
-    # Display poll options as buttons
+
     for option in options:
         if st.button(option, key=f"vote_button_{article_id}_{option}"):
             if track_vote(article_id):
@@ -301,12 +300,8 @@ def create_poll_with_options(article_id, options):
                 st.session_state[vote_key] = votes
                 st.write(f"Your stance: {option}")
 
-    # Custom option input unique to each article
-    
-
     st.write("---")
 
-    # Display poll results
     if any(count > 0 for count in votes.values()):
         st.write("Current Poll Results:")
         total_votes = sum(votes.values())
