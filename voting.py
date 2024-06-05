@@ -74,47 +74,52 @@ def login():
             st.error("Invalid email or password")
 
 # Register function using Firebase Authentication
+# Register function using Firebase Authentication
 def register():
     st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
     
-    if st.button("Register as Anonymous", key="anonymous_register_button"):
-        anonymous_id = cookies.get("anonymous_id")
-        if not anonymous_id:
-            anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
-            cookies["anonymous_id"] = anonymous_id
-            cookies.save()
-        try:
-            # Check if the user already exists
-            try:
-                user = auth.get_user(anonymous_id)
-                st.warning("Anonymous user ID already exists. Logging in with existing ID.")
-                st.session_state["user"] = anonymous_id
-                st.session_state["voted_articles"] = json.loads(cookies.get("voted_articles", "[]"))
-                cookies["user"] = anonymous_id
+    try:
+        if st.button("Register as Anonymous", key="anonymous_register_button"):
+            anonymous_id = cookies.get("anonymous_id")
+            if not anonymous_id:
+                anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
+                cookies["anonymous_id"] = anonymous_id
                 cookies.save()
-                st.session_state['page'] = "Main"  # Set the page to Main after successful login
-                st.experimental_rerun()
-            except UserNotFoundError:
-                user = auth.create_user(uid=anonymous_id)
-                st.session_state["user"] = anonymous_id
-                st.session_state["voted_articles"] = []
-                st.success("Registered anonymously!")
-                cookies["user"] = anonymous_id
-                cookies.save()
-                st.session_state['page'] = "Main"  # Set the page to Main after successful anonymous registration
-                st.experimental_rerun()
-        except EmailAlreadyExistsError as e:
-            st.error(f"Error: {e}")
-
-    else:
-        username = st.text_input("Email", key="register_email")
-        password = st.text_input("Password", type="password", key="register_password")
-        if st.button("Register", key="register_button"):
             try:
-                user = auth.create_user(email=username, password=password)
-                st.success("Registered successfully! You can now log in.")
+                # Check if the user already exists
+                try:
+                    user = auth.get_user(anonymous_id)
+                    st.warning("Anonymous user ID already exists. Logging in with existing ID.")
+                    st.session_state["user"] = anonymous_id
+                    st.session_state["voted_articles"] = json.loads(cookies.get("voted_articles", "[]"))
+                    cookies["user"] = anonymous_id
+                    cookies.save()
+                    st.session_state['page'] = "Main"  # Set the page to Main after successful login
+                    st.experimental_rerun()
+                except UserNotFoundError:
+                    user = auth.create_user(uid=anonymous_id)
+                    st.session_state["user"] = anonymous_id
+                    st.session_state["voted_articles"] = []
+                    st.success("Registered anonymously!")
+                    cookies["user"] = anonymous_id
+                    cookies.save()
+                    st.session_state['page'] = "Main"  # Set the page to Main after successful anonymous registration
+                    st.experimental_rerun()
             except EmailAlreadyExistsError as e:
                 st.error(f"Error: {e}")
+
+        else:
+            username = st.text_input("Email", key="register_email")
+            password = st.text_input("Password", type="password", key="register_password")
+            if st.button("Register", key="register_button"):
+                try:
+                    user = auth.create_user(email=username, password=password)
+                    st.success("Registered successfully! You can now log in.")
+                except EmailAlreadyExistsError as e:
+                    st.error(f"Error: {e}")
+    except st.errors.DuplicateWidgetID:
+        st.warning("An error occurred with the widgets. Please click the register button again to retry.")
+
 
 # Logout function
 def logout():
