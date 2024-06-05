@@ -124,158 +124,7 @@ def logout():
         cookies.save()
         st.experimental_rerun()
 
-
-
-def track_vote(article_id):
-    if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
-        st.session_state["voted_articles"] = []
-
-    if article_id not in st.session_state["voted_articles"]:
-        st.session_state["voted_articles"].append(article_id)
-        cookies["voted_articles"] = json.dumps(st.session_state["voted_articles"])
-        cookies.save()
-        return True
-    else:
-        st.warning("You have already voted on this article.")
-        return False
-
-# Tutorial function
-def tutorial():
-    st.markdown("<h2 style='text-align: center;'>Welcome to ECHO!</h2>", unsafe_allow_html=True)
-    st.write("""
-    **ECHO** is a platform designed to give you a voice on trending news topics, especially in a world where voices are often unheard or suppressed by those in power. Here's how it works:
-    
-    1. **Browse News Articles**: Find news articles from various sources.
-    2. **UPROAR on News**: Vote on news articles by sharing your opinion through polls.
-    3. **See Results**: View how others have voted and the geographical distribution of votes.
-
-    **Why ECHO?**
-
-    In an era where the mainstream media is often controlled by powerful entities, it can be difficult for ordinary people to make their voices heard. ECHO empowers you to speak out on news channels about what you stand for, without the fear of being exposed or censored. Your voice matters, and ECHO ensures it is heard.
-
-    **Getting Started**:
-    - **Register**: Sign up with your email, or register anonymously to protect your identity.
-    - **Login**: Log in to start voting and saving articles.
-    
-    **Features**:
-    - **Search Articles**: Use the search bar to find articles by keywords.
-    - **Save Articles**: Save articles to read later.
-    - **Share Opinions**: Share your opinions on social media directly from the platform.
-
-    **Our Commitment**:
-    - **Anonymity**: Register anonymously if you wish, ensuring your identity is protected.
-    - **Freedom of Speech**: Share your opinions without fear of censorship.
-    - **Community Engagement**: See how others feel about the same topics and participate in a global conversation.
-
-    Enjoy using **ECHO** and make your voice heard!
-    """)
-
-    if st.button("Read less"):
-        st.session_state['page'] = "Login"
-        st.experimental_rerun()
-
-def filter_articles_by_date(feed, days=2):
-    filtered_entries = []
-    current_time = datetime.now()
-    for entry in feed.entries:
-        published_time = datetime(*entry.published_parsed[:6])
-        if current_time - timedelta(days=days) <= published_time <= current_time:
-            filtered_entries.append(entry)
-    return filtered_entries
-
-def create_social_media_share_button(article_title, post_id):
-    website_url = f"https://voices.streamlit.app/article/{post_id}"
-    twitter_url = f"https://twitter.com/intent/tweet?url={website_url}&text={article_title}"
-    facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
-    linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
-    instagram_url = f"https://www.instagram.com/?url={website_url}"
-
-    buttons_html = f"""
-    <div class="dropdown" style="display: inline-block; margin-left: 10px;">
-        <button class="dropbtn">
-            <img src="https://img.icons8.com/material-outlined/24/000000/share.png" alt="Share Icon" style="vertical-align: middle; margin-right: 5px;"/>
-            Share
-        </button>
-        <div class="dropdown-content">
-            <a href="{twitter_url}" target="_blank">Twitter</a>
-            <a href="{facebook_url}" target="_blank">Facebook</a>
-            <a href="{linkedin_url}" target="_blank">LinkedIn</a>
-            <a href="{instagram_url}" target="_blank">Instagram</a>
-        </div>
-    </div>
-
-    <style>
-        .dropdown {{
-            position: relative;
-            display: inline-block;
-        }}
-
-        .dropbtn {{
-            background-color: white;
-            color: black;
-            padding: 10px 16px;
-            font-size: 14px;
-            border: none;
-            cursor: pointer;
-            border-radius: 9px;
-            display: flex;
-            align-items: center;
-        }}
-
-        .dropdown-content {{
-            display: none;
-            position: absolute;
-            background-color: #f9f9f9;
-            min-width: 160px;
-            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-            z-index: 1;
-            border-radius: 10px;
-        }}
-
-        .dropdown-content a {{
-            color: black;
-            padding: 12px 16px;
-            text-decoration: none;
-            display: block;
-        }}
-
-        .dropdown-content a:hover {{
-            background-color: #f1f1f1;
-        }}
-
-        .dropdown:hover .dropdown-content {{
-            display: block;
-        }}
-
-        .dropdown:hover .dropbtn {{
-            background-color: #e6e6e6;
-        }}
-
-        .card-container {{
-            position: relative;
-        }}
-
-        .button-container {{
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            margin-top: 10px;
-        }}
-    </style>
-    """
-    st.markdown(buttons_html, unsafe_allow_html=True)
-
-st.markdown("""
-    <style>
-    .stButton > button {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        width: 50%;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
+# Ensure unique keys for each article's widgets
 def create_poll_with_options(article_id, options):
     vote_key = f"votes_{article_id}"
 
@@ -316,21 +165,22 @@ def create_poll_with_options(article_id, options):
             st.progress(percentage / 100)
         st.write("---")
 
-
-
-
+# Main function
 def main():
     # Set default mode
     if 'dark_mode' not in st.session_state:
         st.session_state['dark_mode'] = False
+
+    # Set initial page to news feed
+    if 'page' not in st.session_state:
+        st.session_state['page'] = "Main"
 
     # Check login state using cookies
     if check_login():
         st.sidebar.write(f"Welcome, {st.session_state['user']}!")
         logout()
     else:
-        if 'page' not in st.session_state or st.session_state['page'] == "Login":
-            st.session_state['page'] = "Login"
+        if st.session_state['page'] == "Login":
             login()
             register()
             return
@@ -518,7 +368,7 @@ def main():
         st.header("Saved Articles")
         st.write("*Warning: Your saved articles are only for this session and will be deleted once the session is over! To ensure you have your articles saved, please sign up or log in.")
         st.sidebar.header("About us:")
-        tut_button=st.sidebar.button("Read here")
+        tut_button = st.sidebar.button("Read here")
         if tut_button:
             tutorial()
 
@@ -570,7 +420,7 @@ def main():
                         st.markdown(card_html, unsafe_allow_html=True)
 
                         col1, col2, col3 = st.columns([1, 1, 1])
-                        
+
                         with col1:
                             if st.button("Save", key=f"save_{idx}"):
                                 st.session_state.saved_posts.append({
@@ -580,7 +430,7 @@ def main():
                                 })
                                 st.success(f"Saved {entry.title}")
                                 st.experimental_rerun()
-                        
+
                         with col2:
                             create_social_media_share_button(entry.title, post_id)
 
@@ -624,6 +474,9 @@ st.markdown("""
     }
     .card:hover {
         transform: scale(1.05);
+    }
+    .stButton > button {
+        width: 100%;
     }
 </style>
 """, unsafe_allow_html=True)
