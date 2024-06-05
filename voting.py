@@ -328,8 +328,7 @@ def main():
         if 'page' not in st.session_state:
             st.session_state['page'] = "Main"
 
-    if st.session_state['page'] == "Login":
-        login()
+    if st.session_state['page'] == "Main":
         register()
         return
 
