@@ -42,84 +42,64 @@ def hash_password(password):
 def check_login():
     if "user" in st.session_state:
         if "voted_articles" not in st.session_state:
-            voted_articles_cookie = cookies.get("voted_articles", "[]")  # Default to an empty JSON list
+            voted_articles_cookie = cookies.get("voted_articles", "[]")
             try:
                 st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
                 if not isinstance(st.session_state["voted_articles"], list):
                     st.session_state["voted_articles"] = []
             except json.JSONDecodeError:
-                st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
+                st.session_state["voted_articles"] = []
         return True
     else:
+        if cookies.get("user"):
+            st.session_state["user"] = cookies.get("user")
+            st.session_state["username"] = cookies.get("username")
+            try:
+                st.session_state["voted_articles"] = json.loads(cookies.get("voted_articles", "[]"))
+                if not isinstance(st.session_state["voted_articles"], list):
+                    st.session_state["voted_articles"] = []
+            except json.JSONDecodeError:
+                st.session_state["voted_articles"] = []
+            return True
         return False
 
-# Login function using Firebase Authentication
-def login():
-    st.markdown("<h1 style='font-family: Garamond; font-weight: bold; font-size: 5em; text-align: center;'>-ECHO-</h1>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center;'>Login</h2>", unsafe_allow_html=True)
-    username = st.text_input("Email", key="login_email")
-    password = st.text_input("Password", type="password", key="login_password")
-    if st.button("Login", key="login_button"):
-        try:
-            user = auth.get_user_by_email(username)
-            user_token = auth.create_custom_token(user.uid)
-            st.session_state["user"] = username
-            st.session_state["voted_articles"] = cookies.get("voted_articles", [])
-            st.success("Logged in successfully!")
-            cookies["user"] = username
-            cookies.save()
-            st.session_state['page'] = "Main"  # Set the page to Main after successful login
-            st.experimental_rerun()
-        except UserNotFoundError:
-            st.error("Invalid email or password")
-
 # Register function using Firebase Authentication
-def register():
-    st.markdown("<h2 style='text-align: center;'>Sign-up</h2>", unsafe_allow_html=True)
-    
+def register_anonymous():
+    st.markdown("<h2 style='text-align: center;'>Register Anonymously</h2>", unsafe_allow_html=True)
     try:
-        if st.button("Register as Anonymous", key="anonymous_register_button"):
-            anonymous_id = cookies.get("anonymous_id")
-            if not anonymous_id:
-                anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
-                cookies["anonymous_id"] = anonymous_id
-                cookies.save()
+        username = st.text_input("Username", key="anonymous_username")
+        if st.button("Register", key="anonymous_register_button"):
+            if not username:
+                st.warning("Please enter a username.")
+                return
+
+            anonymous_id = hashlib.sha256(username.encode()).hexdigest()
+            cookies["anonymous_id"] = anonymous_id
+            cookies.save()
             try:
                 # Check if the user already exists
                 try:
                     user = auth.get_user(anonymous_id)
-                    st.warning("Anonymous user ID already exists. Logging in with existing ID.")
-                    st.session_state["user"] = anonymous_id
-                    st.session_state["voted_articles"] = json.loads(cookies.get("voted_articles", "[]"))
-                    cookies["user"] = anonymous_id
-                    cookies.save()
-                    st.session_state['page'] = "Main"  # Set the page to Main after successful login
-                    st.experimental_rerun()
+                    st.warning("Username already exists. Logging in with existing ID.")
                 except UserNotFoundError:
                     user = auth.create_user(uid=anonymous_id)
-                    st.session_state["user"] = anonymous_id
-                    st.session_state["voted_articles"] = []
                     st.success("Registered anonymously!")
-                    cookies["user"] = anonymous_id
-                    cookies.save()
-                    st.session_state['page'] = "Main"  # Set the page to Main after successful anonymous registration
-                    st.experimental_rerun()
+
+                st.session_state["user"] = anonymous_id
+                st.session_state["username"] = username
+                st.session_state["voted_articles"] = json.loads(cookies.get("voted_articles", "[]"))
+                cookies["user"] = anonymous_id
+                cookies["username"] = username
+                cookies.save()
+                st.session_state['page'] = "Main"
+                st.experimental_rerun()
+
+
             except EmailAlreadyExistsError as e:
                 st.error(f"Error: {e}")
-
-        else:
-            username = st.text_input("Email", key="register_email")
-            password = st.text_input("Password", type="password", key="register_password")
-            if st.button("Register", key="register_button"):
-                try:
-                    user = auth.create_user(email=username, password=password)
-                    st.success("Registered successfully! You can now log in.")
-                except EmailAlreadyExistsError as e:
-                    st.error(f"Error: {e}")
     except st.errors.DuplicateWidgetID:
         st.warning("An error occurred with the widgets. Please click the register button again to retry.")
 
-# Add JavaScript for page reload on drag down
 reload_script = """
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -145,12 +125,15 @@ document.addEventListener('DOMContentLoaded', function() {
 """
 
 st.components.v1.html(reload_script)
+
 # Logout function
 def logout():
     if st.sidebar.button("Logout", key="logout_button"):
         st.session_state.pop("user")
+        st.session_state.pop("username")
         st.session_state.pop("voted_articles")
         cookies["user"] = ""
+        cookies["username"] = ""
         cookies.save()
         st.experimental_rerun()
 
@@ -182,8 +165,7 @@ def tutorial():
     In an era where the mainstream media is often controlled by powerful entities, it can be difficult for ordinary people to make their voices heard. ECHO empowers you to speak out on news channels about what you stand for, without the fear of being exposed or censored. Your voice matters, and ECHO ensures it is heard.
 
     **Getting Started**:
-    - **Register**: Sign up with your email, or register anonymously to protect your identity.
-    - **Login**: Log in to start voting and saving articles.
+    - **Register**: Sign up with your username.
     
     **Features**:
     - **Search Articles**: Use the search bar to find articles by keywords.
@@ -199,7 +181,7 @@ def tutorial():
     """)
 
     if st.button("Read less"):
-        st.session_state['page'] = "Login"
+        st.session_state['page'] = "Main"
         st.experimental_rerun()
 
 def filter_articles_by_date(feed, days=2):
@@ -347,15 +329,14 @@ def main():
 
     # Check login state using cookies
     if check_login():
-        st.sidebar.write(f"Welcome, {st.session_state['user']}!")
+        st.sidebar.write(f"Welcome, {st.session_state.get('username', 'User')}!")
         logout()
     else:
         if 'page' not in st.session_state:
             st.session_state['page'] = "Main"
 
     if st.session_state['page'] == "Login":
-        login()
-        register()
+        register_anonymous()
         return
 
 
@@ -624,7 +605,7 @@ def main():
                                     create_poll_with_options(entry.link, hashtag_options)
                                 else:
                                     st.warning("Please log in or register to have your say")
-                                    if st.button("Login/Register (Dw its all anonymous)", key=f"login_register_{idx}"):
+                                    if st.button("Register (Dw its all anonymous)", key=f"login_register_{idx}"):
                                         st.session_state['page'] = "Login"
                                         st.experimental_rerun()
                             else:
