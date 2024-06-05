@@ -282,9 +282,17 @@ def create_poll_with_options(article_id, options):
     votes = st.session_state[vote_key]
 
     st.write("Choose your stance on this news:")
-    custom_option = st.text_input(f"Enter a custom option for this article:", key=f"custom_option_{article_id}_input")
+    
+    # Ensure unique key for text input
+    custom_input_key = f"custom_option_{article_id}_input_{hash(article_id)}"
+    st.write(f"Custom input key: {custom_input_key}")  # Debug statement
+    custom_option = st.text_input(f"Enter a custom option for this article:", key=custom_input_key)
+    
     if custom_option:
-        if st.button(f"Add custom option", key=f"add_custom_option_{article_id}_button"):
+        # Ensure unique key for button
+        add_button_key = f"add_custom_option_{article_id}_button_{hash(custom_option)}"
+        st.write(f"Add custom option button key: {add_button_key}")  # Debug statement
+        if st.button(f"Add custom option", key=add_button_key):
             if custom_option not in options:
                 options.append(custom_option)
                 votes[custom_option] = 0
@@ -294,7 +302,10 @@ def create_poll_with_options(article_id, options):
                 st.write(f"Your stance: {custom_option}")
 
     for option in options:
-        if st.button(option, key=f"vote_button_{article_id}_{option}"):
+        # Ensure unique key for each voting button
+        vote_button_key = f"vote_button_{article_id}_{option}_{hash(option)}"
+        st.write(f"Vote button key: {vote_button_key}")  # Debug statement
+        if st.button(option, key=vote_button_key):
             if track_vote(article_id):
                 votes[option] += 1
                 st.session_state[vote_key] = votes
@@ -310,6 +321,7 @@ def create_poll_with_options(article_id, options):
             st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
             st.progress(percentage / 100)
         st.write("---")
+
 
 def main():
     # Set default mode
