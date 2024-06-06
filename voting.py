@@ -307,7 +307,9 @@ def create_poll_with_options(article_id, options):
             st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
             st.progress(percentage / 100)
         st.write("---")
-# Other imports and initialization code...
+
+# Load Spacy model and cache the function
+@st.cache_resource
 def load_spacy_model():
     return spacy.load("en_core_web_lg")
 
@@ -376,7 +378,7 @@ def create_news_card(entry, content, image, dark_mode, idx):
                 else:
                     st.warning("Please register anonymously to have your say")
                     if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
-                        st.write("*Dont worry all users will remain anonymous,your data is yours")
+                        st.write("*Don't worry, all users will remain anonymous, your data is yours")
                         st.session_state['page'] = "Register"
                         st.experimental_rerun()
             else:
@@ -458,10 +460,6 @@ def main():
         register_anonymous()
         return
 
-    @st.cache_resource
-    def load_spacy_model():
-        return spacy.load("en_core_web_lg")
-
     async def fetch_article_content_async(session, url):
         async with session.get(url) as response:
             content = await response.read()
@@ -488,13 +486,6 @@ def main():
 
     OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenCage API key
     geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
-
-    @st.cache_data
-    def extract_relevant_entities(text):
-        nlp = load_spacy_model()
-        doc = nlp(text)
-        entities = [ent.text for ent in doc.ents if ent.label_ in ['PERSON', 'ORG', 'GPE']]
-        return list(set(entities))
 
     @st.cache_data
     def get_user_location(api_key):
