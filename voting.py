@@ -470,11 +470,11 @@ def main():
 
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
-    st.title("LET")
-    st.title("YOUR")
-    st.title("VOICE")
-    st.title("-||EKO||-")
-    st.header("HAVE YOUR SAY")
+    st.title(" LET")
+    st.title(" YOUR")
+    st.title(" VOICE")
+    st.title("- EKO-")
+    st.header(" HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
