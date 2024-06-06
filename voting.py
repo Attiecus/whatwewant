@@ -308,6 +308,15 @@ def create_poll_with_options(article_id, options):
             st.progress(percentage / 100)
         st.write("---")
 # Other imports and initialization code...
+def load_spacy_model():
+    return spacy.load("en_core_web_lg")
+
+@st.cache_data
+def extract_relevant_entities(text):
+    nlp = load_spacy_model()
+    doc = nlp(text)
+    entities = [ent.text for ent in doc.ents if ent.label_ in ['PERSON', 'ORG', 'GPE']]
+    return list(set(entities))
 
 def determine_poll_type(article):
     if "policy" in article['title'].lower() or "election" in article['title'].lower():
