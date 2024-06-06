@@ -15,6 +15,7 @@ from firebase_admin import credentials, auth
 from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
 from datetime import datetime, timedelta
 from PIL import Image
+from urllib.parse import urlencode, parse_qs, urlparse
 import random
 
 # Initialize cookie manager
@@ -269,7 +270,16 @@ def create_social_media_share_button(article_title, post_id):
     </style>
     """
     st.markdown(buttons_html, unsafe_allow_html=True)
-
+st.markdown("""
+    <style>
+    .stButton > button {
+        display: block;
+        margin-left: auto;
+        margin-right: auto;
+        width: 50%;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 def create_poll_with_options(article_id, options):
     vote_key = f"votes_{article_id}"
 
@@ -308,143 +318,6 @@ def create_poll_with_options(article_id, options):
             st.progress(percentage / 100)
         st.write("---")
 
-# Load Spacy model and cache the function
-@st.cache_resource
-def load_spacy_model():
-    return spacy.load("en_core_web_lg")
-
-@st.cache_data
-def extract_relevant_entities(text):
-    nlp = load_spacy_model()
-    doc = nlp(text)
-    entities = [ent.text for ent in doc.ents if ent.label_ in ['PERSON', 'ORG', 'GPE']]
-    return list(set(entities))
-
-def determine_poll_type(article):
-    if "policy" in article['title'].lower() or "election" in article['title'].lower():
-        return "yes_no"
-    else:
-        return "entity_based"
-
-def create_news_card(entry, content, image, dark_mode, idx):
-    article_url = entry.link
-    post_id = hashlib.md5(article_url.encode()).hexdigest()  # Generate unique post ID
-
-    card_color = "#444444" if dark_mode else "#f9f9f9"
-    text_color = "#ffffff" if dark_mode else "#000000"
-
-    card_html = f"""
-    <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px; width: 100%;">
-        <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
-        <p style="color: {text_color};">{entry.summary}</p>
-    """
-    if image:
-        card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
-
-    card_html += "</div>"
-    st.markdown(card_html, unsafe_allow_html=True)
-
-    with st.container():
-        col1, col2, col3 = st.columns([1, 1, 1])
-
-        with col1:
-            create_social_media_share_button(entry.title, post_id)
-
-        with col2:
-            if st.button(":arrow_down:", key=f"save_{idx}"):
-                st.session_state.saved_posts.append({
-                    'title': entry.title,
-                    'summary': entry.summary,
-                    'link': article_url
-                })
-                st.success(f"Saved {entry.title}")
-                st.experimental_rerun()
-
-        with col3:
-            if content:
-                poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
-                if poll_type == "yes_no":
-                    options = ["Yes", "No"]
-                else:
-                    relevant_entities = extract_relevant_entities(content)
-                    entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
-                    sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
-                    options = [entity[0] for entity in sorted_entities[:5]]
-
-                hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
-
-                if options:
-                    if check_login():
-                        create_poll_with_options(entry.link, hashtag_options)
-                    else:
-                        st.warning("Please register anonymously to have your say")
-                        if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
-                            st.write("*Don't worry, all users will remain anonymous, your data is yours")
-                            st.session_state['page'] = "Register"
-                            st.experimental_rerun()
-                else:
-                    st.write("No relevant entities found for voting.")
-            else:
-                st.write("No content available for deeper analysis.")
-
-# CSS for card styling 
-st.markdown("""
-<style>
-    .card {
-        border: 1px solid #ccc;
-        border-radius: 10px;
-        padding: 20px;
-        margin: 10px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-        transition: transform 0.3s ease-in-out;
-        width: 300px; /* Fixed width for Pinterest-like cards */
-    }
-    .card:hover {
-        transform: scale(1.05);
-    }
-    .dropdown {
-        position: relative;
-        display: inline-block;
-    }
-    .dropbtn {
-        background-color: white;
-        color: black;
-        padding: 10px 16px;
-        font-size: 14px;
-        border: none;
-        cursor: pointer;
-        border-radius: 9px;
-        display: flex;
-        align-items: center;
-    }
-    .dropdown-content {
-        display: none;
-        position: absolute;
-        background-color: #f9f9f9;
-        min-width: 160px;
-        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
-        z-index: 1;
-        border-radius: 10px;
-    }
-    .dropdown-content a {
-        color: black;
-        padding: 12px 16px;
-        text-decoration: none;
-        display: block;
-    }
-    .dropdown-content a:hover {
-        background-color: #f1f1f1;
-    }
-    .dropdown:hover .dropdown-content {
-        display: block;
-    }
-    .dropdown:hover .dropbtn {
-        background-color: #e6e6e6;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# Main function
 def main():
     # Set default mode
     if 'dark_mode' not in st.session_state:
@@ -461,6 +334,10 @@ def main():
     if st.session_state['page'] == "Register":
         register_anonymous()
         return
+
+    @st.cache_resource
+    def load_spacy_model():
+        return spacy.load("en_core_web_lg")
 
     async def fetch_article_content_async(session, url):
         async with session.get(url) as response:
@@ -488,6 +365,19 @@ def main():
 
     OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenCage API key
     geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
+
+    @st.cache_data
+    def extract_relevant_entities(text):
+        nlp = load_spacy_model()
+        doc = nlp(text)
+        entities = [ent.text for ent in doc.ents if ent.label_ in ['PERSON', 'ORG', 'GPE']]
+        return list(set(entities))
+
+    def determine_poll_type(article):
+        if "policy" in article['title'].lower() or "election" in article['title'].lower():
+            return "yes_no"
+        else:
+            return "entity_based"
 
     @st.cache_data
     def get_user_location(api_key):
@@ -528,16 +418,12 @@ def main():
                 font-weight: bold;
                 font-size: 7em;
                 text-align: center;
-                margin-top: 0; /* Remove top margin */
-                padding-top: 0; /* Remove top padding */
             }
             h2 {
                 font-family: 'Arial';
                 font-weight: bold;
                 text-align: center;
                 font-size:2em
-                margin-top: 0; /* Remove top margin */
-                padding-top: 0; /* Remove top padding */
             }
             @media (max-width: 768px) {
                 h1 {
@@ -653,7 +539,9 @@ def main():
             st.write("No articles saved.")
 
     if show_voting_section:
+        # Filter articles by date (past 2 days)
         filtered_entries = filter_articles_by_date(feed, days=2)
+        # Further filter articles based on user query
         filtered_entries = search_articles(filtered_entries, user_query)
         if filtered_entries:
             num_cols = min(len(filtered_entries), 3)
@@ -665,9 +553,83 @@ def main():
             for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
                 col = cols[idx % num_cols]
                 with col:
-                    create_news_card(entry, content, image, dark_mode, idx)
+                    with st.container():
+                        article_url = entry.link
+                        post_id = hashlib.md5(article_url.encode()).hexdigest()  # Generate unique post ID
+
+                        card_color = "#444444" if dark_mode else "#f9f9f9"
+                        text_color = "#ffffff" if dark_mode else "#000000"
+
+                        card_html = f"""
+                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                            <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
+                            <p style="color: {text_color};">{entry.summary}</p>
+                        """
+                        if image:
+                            card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
+
+                        card_html += "</div>"
+                        st.markdown(card_html, unsafe_allow_html=True)
+
+                        col1, col2, col3 = st.columns([1, 1, 1])
+                        
+                        with col3:
+                            if st.button(":arrow_down:", key=f"save_{idx}"):
+                                st.session_state.saved_posts.append({
+                                    'title': entry.title,
+                                    'summary': entry.summary,
+                                    'link': article_url
+                                })
+                                st.success(f"Saved {entry.title}")
+                                st.experimental_rerun()
+                        
+                        with col1:
+                            create_social_media_share_button(entry.title, post_id)
+
+                        if content:
+                            poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
+                            if poll_type == "yes_no":
+                                options = ["Yes", "No"]
+                            else:
+                                relevant_entities = extract_relevant_entities(content)
+                                entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
+                                sorted_entities = sorted(entity_counts.items(), key=lambda x: 1, reverse=True)
+                                options = [entity[0] for entity in sorted_entities[:5]]
+
+                            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+
+                            if options:
+                                if check_login():
+                                    create_poll_with_options(entry.link, hashtag_options)
+                                else:
+                                    st.warning("Please register anonymously to have your say")
+                                    if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
+                                        st.write("*Dont worry all users will remain anonymous,your data is yours")
+                                        st.session_state['page'] = "Register"
+                                        st.experimental_rerun()
+                            else:
+                                st.write("No relevant entities found for voting.")
+
+                        else:
+                            st.write("No content available for deeper analysis.")
         else:
             st.error("Failed to fetch trending news.")
+
+st.markdown("""
+<style>
+    .card {
+        border: 1px solid #ccc;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 10px;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease-in-out;
+    }
+    .card:hover {
+        transform: scale(1.05);
+    }
+</style>
+""", unsafe_allow_html=True)
 
 if __name__ == "__main__":
     main()
