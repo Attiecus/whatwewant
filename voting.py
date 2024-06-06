@@ -96,31 +96,7 @@ def register_anonymous():
         st.warning("Please click the register button again to confirm.")
 
 # Add JavaScript for page reload on drag down
-reload_script = """
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let touchstartY = 0;
-    let touchendY = 0;
 
-    function checkDirection() {
-        if (touchendY > touchstartY) {
-            location.reload();
-        }
-    }
-
-    document.body.addEventListener('touchstart', function(e) {
-        touchstartY = e.changedTouches[0].screenY;
-    }, false);
-
-    document.body.addEventListener('touchend', function(e) {
-        touchendY = e.changedTouches[0].screenY;
-        checkDirection();
-    }, false);
-});
-</script>
-"""
-
-st.components.v1.html(reload_script)
 
 # Logout function
 def logout():
