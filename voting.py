@@ -563,7 +563,7 @@ def main():
                                 st.success(f"Saved {entry.title}")
                                 st.experimental_rerun()
                         
-                        with col1:
+                        with col2:
                             create_social_media_share_button(entry.title, post_id)
 
                         if content:
