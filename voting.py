@@ -93,7 +93,7 @@ def register_anonymous():
                 st.error(f"Error: {e}")
 
     except st.errors.DuplicateWidgetID:
-        st.warning("An error occurred with the widgets. Please click the register button again to retry.")
+        st.warning("Please click the register button again to confirm.")
 
 # Add JavaScript for page reload on drag down
 reload_script = """
