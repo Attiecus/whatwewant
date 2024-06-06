@@ -473,7 +473,7 @@ def main():
     st.title(" LET")
     st.title(" YOUR")
     st.title(" VOICE")
-    st.title("- EKO-")
+    st.title("- EKO -")
     st.header(" HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
