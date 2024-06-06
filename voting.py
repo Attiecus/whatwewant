@@ -307,6 +307,12 @@ def create_poll_with_options(article_id, options):
             st.write(f"{option}: {count} votes ({percentage:.2f}% of total)")
             st.progress(percentage / 100)
         st.write("---")
+def determine_poll_type(article):
+    if "policy" in article['title'].lower() or "election" in article['title'].lower():
+        return "yes_no"
+    else:
+        return "entity_based"
+
 
 def create_news_card(entry, content, image, dark_mode, idx):
     article_url = entry.link
