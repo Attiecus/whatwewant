@@ -173,7 +173,7 @@ def create_social_media_share_button(article_title, post_id):
     instagram_url = f"https://www.instagram.com/?url={website_url}"
 
     buttons_html = f"""
-    <div class="dropdown" style="display: inline-block; margin-left: 10px;">
+    <div class="dropdown" style="display: inline-block; margin-left: 55px;">
         <button class="dropbtn">
             <img src="https://img.icons8.com/material-outlined/24/000000/share.png" alt="Share Icon" style="vertical-align: middle; margin-right: 5px;"/>
             .
@@ -470,11 +470,11 @@ def main():
 
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
-    st.title(" LET")
-    st.title(" YOUR")
-    st.title(" VOICE")
-    st.title("- EKO -")
-    st.header(" HAVE YOUR SAY")
+    st.title("LET")
+    st.title("YOUR")
+    st.title("VOICE")
+    st.title("-||EKO||-")
+    st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
@@ -562,9 +562,9 @@ def main():
                                 })
                                 st.success(f"Saved {entry.title}")
                                 st.experimental_rerun()
-                        
-                        with col3:
                             create_social_media_share_button(entry.title, post_id)
+                    
+                            
 
                         if content:
                             poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
