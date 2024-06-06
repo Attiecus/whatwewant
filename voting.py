@@ -418,12 +418,16 @@ def main():
                 font-weight: bold;
                 font-size: 7em;
                 text-align: center;
+                margin-top: 0; /* Remove top margin */
+                padding-top: 0; /* Remove top padding */
             }
             h2 {
                 font-family: 'Arial';
                 font-weight: bold;
                 text-align: center;
                 font-size:2em
+                margin-top: 0; /* Remove top margin */
+                padding-top: 0; /* Remove top padding */
             }
             @media (max-width: 768px) {
                 h1 {
@@ -490,8 +494,10 @@ def main():
 
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
-
-    st.title("-ECHO-")
+    st.title("LET")
+    st.title("YOUR")
+    st.title("VOICE")
+    st.title("-||ECHO||-")
     st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
