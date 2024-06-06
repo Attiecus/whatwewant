@@ -334,7 +334,7 @@ def create_news_card(entry, content, image, dark_mode, idx):
     text_color = "#ffffff" if dark_mode else "#000000"
 
     card_html = f"""
-    <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+    <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px; width: 100%;">
         <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
         <p style="color: {text_color};">{entry.summary}</p>
     """
@@ -387,8 +387,7 @@ def create_news_card(entry, content, image, dark_mode, idx):
             else:
                 st.write("No content available for deeper analysis.")
 
-# CSS for card styling
-st.markdown("""
+# CSS for card stylingst.markdown("""
 <style>
     .card {
         border: 1px solid #ccc;
@@ -397,6 +396,7 @@ st.markdown("""
         margin: 10px;
         box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
         transition: transform 0.3s ease-in-out;
+        width: 300px; /* Fixed width for Pinterest-like cards */
     }
     .card:hover {
         transform: scale(1.05);
