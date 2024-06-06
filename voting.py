@@ -200,7 +200,7 @@ def create_social_media_share_button(article_title, post_id):
     <div class="dropdown" style="display: inline-block; margin-left: 10px;">
         <button class="dropbtn">
             <img src="https://img.icons8.com/material-outlined/24/000000/share.png" alt="Share Icon" style="vertical-align: middle; margin-right: 5px;"/>
-            Share
+            .
         </button>
         <div class="dropdown-content">
             <a href="{twitter_url}" target="_blank">Twitter</a>
@@ -416,13 +416,14 @@ def main():
             h1 {
                 font-family: 'Garamond';
                 font-weight: bold;
-                font-size: 5em;
+                font-size: 7em;
                 text-align: center;
             }
             h2 {
-                font-family: 'Times New Roman';
+                font-family: 'Arial';
                 font-weight: bold;
                 text-align: center;
+                font-size:2em
             }
             @media (max-width: 768px) {
                 h1 {
@@ -437,8 +438,8 @@ def main():
         dark_css = """
         <style>
             body {
-                background-color: #2e2e2e;
-                color: #ffffff;
+                background-color: #000000;
+                color: #000000;
             }
             a {
                 color: #1E90FF;
@@ -527,7 +528,7 @@ def main():
         saved_posts = st.session_state.saved_posts
         if saved_posts:
             for idx, post in enumerate(saved_posts):
-                if st.button(f"Remove {post['title']}", key=f"remove_{idx}"):
+                if st.button(f"Unsave", key=f"remove_{idx}"):
                     st.session_state.saved_posts = [p for p in saved_posts if p['link'] != post['link']]
                     st.experimental_rerun()
                 st.markdown(f"### [{post['title']}]({post['link']})")
@@ -571,7 +572,7 @@ def main():
                         col1, col2, col3 = st.columns([1, 1, 1])
                         
                         with col3:
-                            if st.button("Save", key=f"save_{idx}"):
+                            if st.button(":arrow_down:", key=f"save_{idx}"):
                                 st.session_state.saved_posts.append({
                                     'title': entry.title,
                                     'summary': entry.summary,
@@ -601,6 +602,7 @@ def main():
                                 else:
                                     st.warning("Please register anonymously to have your say")
                                     if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
+                                        st.write("*Dont worry all users will remain anonymous,your data is yours")
                                         st.session_state['page'] = "Register"
                                         st.experimental_rerun()
                             else:
