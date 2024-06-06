@@ -173,7 +173,7 @@ def create_social_media_share_button(article_title, post_id):
     instagram_url = f"https://www.instagram.com/?url={website_url}"
 
     buttons_html = f"""
-    <div class="dropdown" style="display: inline-block; margin-left: 55px;">
+    <div class="dropdown" style="display: inline-block; margin-right:5px 0px;margin-top:0;">
         <button class="dropbtn">
             <img src="https://img.icons8.com/material-outlined/24/000000/share.png" alt="Share Icon" style="vertical-align: middle; margin-right: 5px;"/>
             .
@@ -562,6 +562,8 @@ def main():
                                 })
                                 st.success(f"Saved {entry.title}")
                                 st.experimental_rerun()
+                        
+                        with col1:
                             create_social_media_share_button(entry.title, post_id)
                     
                             
