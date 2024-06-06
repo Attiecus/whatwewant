@@ -387,7 +387,8 @@ def create_news_card(entry, content, image, dark_mode, idx):
             else:
                 st.write("No content available for deeper analysis.")
 
-# CSS for card stylingst.markdown("""
+# CSS for card styling 
+st.markdown("""
 <style>
     .card {
         border: 1px solid #ccc;
