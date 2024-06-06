@@ -344,47 +344,48 @@ def create_news_card(entry, content, image, dark_mode, idx):
     card_html += "</div>"
     st.markdown(card_html, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 1, 1])
+    with st.container():
+        col1, col2, col3 = st.columns([1, 1, 1])
 
-    with col1:
-        create_social_media_share_button(entry.title, post_id)
+        with col1:
+            create_social_media_share_button(entry.title, post_id)
 
-    with col2:
-        if st.button(":arrow_down:", key=f"save_{idx}"):
-            st.session_state.saved_posts.append({
-                'title': entry.title,
-                'summary': entry.summary,
-                'link': article_url
-            })
-            st.success(f"Saved {entry.title}")
-            st.experimental_rerun()
+        with col2:
+            if st.button(":arrow_down:", key=f"save_{idx}"):
+                st.session_state.saved_posts.append({
+                    'title': entry.title,
+                    'summary': entry.summary,
+                    'link': article_url
+                })
+                st.success(f"Saved {entry.title}")
+                st.experimental_rerun()
 
-    with col3:
-        if content:
-            poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
-            if poll_type == "yes_no":
-                options = ["Yes", "No"]
-            else:
-                relevant_entities = extract_relevant_entities(content)
-                entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
-                sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
-                options = [entity[0] for entity in sorted_entities[:5]]
-
-            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
-
-            if options:
-                if check_login():
-                    create_poll_with_options(entry.link, hashtag_options)
+        with col3:
+            if content:
+                poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
+                if poll_type == "yes_no":
+                    options = ["Yes", "No"]
                 else:
-                    st.warning("Please register anonymously to have your say")
-                    if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
-                        st.write("*Don't worry, all users will remain anonymous, your data is yours")
-                        st.session_state['page'] = "Register"
-                        st.experimental_rerun()
+                    relevant_entities = extract_relevant_entities(content)
+                    entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
+                    sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
+                    options = [entity[0] for entity in sorted_entities[:5]]
+
+                hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+
+                if options:
+                    if check_login():
+                        create_poll_with_options(entry.link, hashtag_options)
+                    else:
+                        st.warning("Please register anonymously to have your say")
+                        if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
+                            st.write("*Don't worry, all users will remain anonymous, your data is yours")
+                            st.session_state['page'] = "Register"
+                            st.experimental_rerun()
+                else:
+                    st.write("No relevant entities found for voting.")
             else:
-                st.write("No relevant entities found for voting.")
-        else:
-            st.write("No content available for deeper analysis.")
+                st.write("No content available for deeper analysis.")
 
 # CSS for card styling
 st.markdown("""
