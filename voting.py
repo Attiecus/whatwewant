@@ -19,7 +19,7 @@ from urllib.parse import urlencode, parse_qs, urlparse
 import random
 
 # Initialize cookie manager
-st.set_page_config(layout='wide', page_title='Echo')
+st.set_page_config(layout='wide', page_title='EKO')
 
 # Check if Firebase app is already initialized
 if not firebase_admin._apps:
@@ -123,17 +123,17 @@ def track_vote(article_id):
 
 # Tutorial function
 def tutorial():
-    st.markdown("<h2 style='text-align: center;'>Welcome to ECHO!</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>Welcome to EKO!</h2>", unsafe_allow_html=True)
     st.write("""
-    **ECHO** is a platform designed to give you a voice on trending news topics, especially in a world where voices are often unheard or suppressed by those in power. Here's how it works:
+    **EKO** is a platform designed to give you a voice on trending news topics, especially in a world where voices are often unheard or suppressed by those in power. Here's how it works:
     
     1. **Browse News Articles**: Find news articles from various sources.
     2. **UPROAR on News**: Vote on news articles by sharing your opinion through polls.
     3. **See Results**: View how others have voted and the geographical distribution of votes.
 
-    **Why ECHO?**
+    **Why EKO?**
 
-    In an era where the mainstream media is often controlled by powerful entities, it can be difficult for ordinary people to make their voices heard. ECHO empowers you to speak out on news channels about what you stand for, without the fear of being exposed or censored. Your voice matters, and ECHO ensures it is heard.
+    In an era where the mainstream media is often controlled by powerful entities, it can be difficult for ordinary people to make their voices heard. EKO empowers you to speak out on news channels about what you stand for, without the fear of being exposed or censored. Your voice matters, and EKO ensures it is heard.
 
     **Getting Started**:
     - **Register**: Sign up with your email, or register anonymously to protect your identity.
@@ -149,7 +149,7 @@ def tutorial():
     - **Freedom of Speech**: Share your opinions without fear of censorship.
     - **Community Engagement**: See how others feel about the same topics and participate in a global conversation.
 
-    Enjoy using **ECHO** and make your voice heard!
+    Enjoy using **EKO** and make your voice heard!
     """)
 
     if st.button("Read less"):
@@ -473,7 +473,7 @@ def main():
     st.title("LET")
     st.title("YOUR")
     st.title("VOICE")
-    st.title("-EKO-")
+    st.title("-||EKO||-")
     st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
