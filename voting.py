@@ -178,7 +178,7 @@ def create_social_media_share_button(article_title, post_id):
     <div class="dropdown" style="display: inline-block; margin-left: 10px;">
         <button class="dropbtn">
             <img src="https://img.icons8.com/material-outlined/24/000000/share.png" alt="Share Icon" style="vertical-align: middle; margin-right: 5px;"/>
-            .
+            -
         </button>
         <div class="dropdown-content">
             <a href="{twitter_url}" target="_blank">Twitter</a>
@@ -378,12 +378,7 @@ def main():
                     data.append({'lat': lat, 'lon': lon})
         return data
 
-    def toggle_voting_section():
-        if 'show_voting_section' not in st.session_state:
-            st.session_state['show_voting_section'] = True
-        show_voting_section = st.session_state['show_voting_section']
-        return st.checkbox("Show/Hide Voting Section", value=show_voting_section, key='toggle_voting')
-
+ 
     def toggle_dark_light_mode():
         st.session_state['dark_mode'] = st.sidebar.checkbox("Dark Mode", value=st.session_state['dark_mode'])
         return st.session_state['dark_mode']
@@ -398,7 +393,7 @@ def main():
                 text-align: center;
             }
             h2 {
-                font-family: 'Arial';
+                font-family: 'Boston';
                 font-weight: bold;
                 text-align: center;
                 font-size:2em
@@ -476,17 +471,15 @@ def main():
             display: block;
             margin-left: auto;
             margin-right: auto;
-            width: 50%;  /* Adjust the width as needed */
-            margin-top: 1px;  /* Adjust the margin to lower the image */
-            margin-bottom: -100px;  /* Adjust the margin to reduce the gap */
+            width: 60%;  /* Adjust the width to make the image bigger */
+            margin-top: 20px;  /* Adjust the margin to lower the image */
+            margin-bottom: -20px;  /* Adjust the margin to reduce the gap */
         }
         </style>
         """, 
         unsafe_allow_html=True
     )
-    st.image("logo.png", width=500, use_column_width=True, output_format="PNG", caption="")
-
-   
+    st.image("logo.png", use_column_width=True,width=500, output_format="PNG", caption="")
     st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
@@ -507,7 +500,6 @@ def main():
     else:
         feed = feedparser.parse(feed_url)
 
-    show_voting_section = toggle_voting_section()
 
     with st.sidebar:
         st.header("Saved Articles")
@@ -530,12 +522,12 @@ def main():
         else:
             st.write("No articles saved.")
 
-    if show_voting_section:
+  
         # Filter articles by date (past 2 days)
-        filtered_entries = filter_articles_by_date(feed, days=2)
+    filtered_entries = filter_articles_by_date(feed, days=2)
         # Further filter articles based on user query
-        filtered_entries = search_articles(filtered_entries, user_query)
-        if filtered_entries:
+    filtered_entries = search_articles(filtered_entries, user_query)
+    if filtered_entries:
             num_cols = min(len(filtered_entries), 3)
             cols = st.columns(num_cols)
 
@@ -604,8 +596,8 @@ def main():
 
                         else:
                             st.write("No content available for deeper analysis.")
-        else:
-            st.error("Failed to fetch trending news.")
+            else:
+             st.error("Failed to fetch trending news.")
 
 st.markdown("""
 <style>
