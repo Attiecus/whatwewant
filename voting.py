@@ -484,7 +484,7 @@ def main():
         """, 
         unsafe_allow_html=True
     )
-    st.image("logo.png", width=400, use_column_width=True, output_format="PNG", caption="")
+    st.image("logo.png", width=500, use_column_width=True, output_format="PNG", caption="")
 
    
     st.header("HAVE YOUR SAY")
