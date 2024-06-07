@@ -96,31 +96,9 @@ def register_anonymous():
         st.warning("Please click the register button again to confirm.")
 
 # Add JavaScript for page reload on drag down
-reload_script = """
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let touchstartY = 0;
-    let touchendY = 0;
 
-    function checkDirection() {
-        if (touchendY > touchstartY) {
-            location.reload();
-        }
-    }
 
-    document.body.addEventListener('touchstart', function(e) {
-        touchstartY = e.changedTouches[0].screenY;
-    }, false);
 
-    document.body.addEventListener('touchend', function(e) {
-        touchendY = e.changedTouches[0].screenY;
-        checkDirection();
-    }, false);
-});
-</script>
-"""
-
-st.components.v1.html(reload_script)
 
 # Logout function
 def logout():
@@ -487,17 +465,31 @@ def main():
             if query.lower() in entry.title.lower() or query.lower() in entry.summary.lower():
                 filtered_entries.append(entry)
         return filtered_entries
-
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
-    st.title("LET")
-    st.title("YOUR")
-    st.title("VOICE")
-    st.title("-||ECHO||-")
+
+    # Display the logo image centered and large
+    st.markdown(
+        """
+        <style>
+        .centered-logo {
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+            width: 50%;  /* Adjust the width as needed */
+            margin-top: 1px;  /* Adjust the margin to lower the image */
+            margin-bottom: -100px;  /* Adjust the margin to reduce the gap */
+        }
+        </style>
+        """, 
+        unsafe_allow_html=True
+    )
+    st.image("logo.png", width=400, use_column_width=True, output_format="PNG", caption="")
+
+   
     st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
-
     news_sources = {
         "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
         "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
