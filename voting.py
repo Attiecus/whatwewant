@@ -318,7 +318,7 @@ def main():
         """, unsafe_allow_html=True
     )
 
-    st.markdown('<div class="loading-container"><img src="logo.png" class="loading-logo" alt="Logo"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="loading-container"><img src="logoi.svl" class="loading-logo" alt="Logo"></div>', unsafe_allow_html=True)
     time.sleep(2)  # Display loading screen for 2 seconds
 
     # Set default mode
