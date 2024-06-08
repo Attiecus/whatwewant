@@ -19,7 +19,7 @@ from urllib.parse import urlencode, parse_qs, urlparse
 import random
 
 # Initialize cookie manager
-st.set_page_config(layout='wide', page_title='Echo')
+st.set_page_config(layout='wide', page_title='Echo', initial_sidebar_state='collapsed')
 
 # Check if Firebase app is already initialized
 if not firebase_admin._apps:
@@ -52,6 +52,12 @@ def check_login():
                 st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
         return True
     else:
+        user_id = cookies.get("user")
+        if user_id:
+            st.session_state["user"] = user_id
+            st.session_state["username"] = cookies.get("anonymous_name")
+            st.session_state["voted_articles"] = json.loads(cookies.get("voted_articles", "[]"))
+            return True
         return False
 
 # Register function using Firebase Authentication
@@ -94,11 +100,6 @@ def register_anonymous():
 
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
-
-# Add JavaScript for page reload on drag down
-
-
-
 
 # Logout function
 def logout():
@@ -248,6 +249,7 @@ def create_social_media_share_button(article_title, post_id):
     </style>
     """
     st.markdown(buttons_html, unsafe_allow_html=True)
+
 st.markdown("""
     <style>
     .stButton > button {
@@ -258,6 +260,7 @@ st.markdown("""
     }
     </style>
     """, unsafe_allow_html=True)
+
 def create_poll_with_options(article_id, options):
     vote_key = f"votes_{article_id}"
 
@@ -297,6 +300,27 @@ def create_poll_with_options(article_id, options):
         st.write("---")
 
 def main():
+    # Display loading screen with logo
+    st.markdown(
+        """
+        <style>
+        .loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+        .loading-logo {
+            width: 50%;
+        }
+        </style>
+        """, unsafe_allow_html=True
+    )
+
+    st.markdown('<div class="loading-container"><img src="logo.png" class="loading-logo" alt="Logo"></div>', unsafe_allow_html=True)
+    time.sleep(2)  # Display loading screen for 2 seconds
+
     # Set default mode
     if 'dark_mode' not in st.session_state:
         st.session_state['dark_mode'] = False
@@ -378,7 +402,6 @@ def main():
                     data.append({'lat': lat, 'lon': lon})
         return data
 
- 
     def toggle_dark_light_mode():
         st.session_state['dark_mode'] = st.sidebar.checkbox("Dark Mode", value=st.session_state['dark_mode'])
         return st.session_state['dark_mode']
@@ -412,7 +435,7 @@ def main():
         <style>
             body {
                 background-color: #000000;
-                color: #000000;
+                color: #ffffff;
             }
             a {
                 color: #1E90FF;
@@ -460,6 +483,7 @@ def main():
             if query.lower() in entry.title.lower() or query.lower() in entry.summary.lower():
                 filtered_entries.append(entry)
         return filtered_entries
+
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
 
@@ -479,7 +503,7 @@ def main():
         """, 
         unsafe_allow_html=True
     )
-    st.image("logo.png", use_column_width=True,width=500, output_format="PNG", caption="")
+    st.image("logo.png", use_column_width=True, width=500, output_format="PNG", caption="")
     st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
@@ -500,12 +524,11 @@ def main():
     else:
         feed = feedparser.parse(feed_url)
 
-
     with st.sidebar:
         st.header("Saved Articles")
         st.write("*Warning: Your saved articles are only for this session and will be deleted once the session is over! To ensure you have your articles saved, please sign up or log in.")
         st.sidebar.header("About us:")
-        tut_button=st.sidebar.button("Read here")
+        tut_button = st.sidebar.button("Read here")
         if tut_button:
             tutorial()
 
@@ -522,82 +545,81 @@ def main():
         else:
             st.write("No articles saved.")
 
-  
-        # Filter articles by date (past 2 days)
+    # Filter articles by date (past 2 days)
     filtered_entries = filter_articles_by_date(feed, days=2)
-        # Further filter articles based on user query
+    # Further filter articles based on user query
     filtered_entries = search_articles(filtered_entries, user_query)
     if filtered_entries:
-            num_cols = min(len(filtered_entries), 3)
-            cols = st.columns(num_cols)
+        num_cols = min(len(filtered_entries), 3)
+        cols = st.columns(num_cols)
 
-            urls = [entry.link for entry in filtered_entries]
-            articles = asyncio.run(fetch_articles(urls))
+        urls = [entry.link for entry in filtered_entries]
+        articles = asyncio.run(fetch_articles(urls))
 
-            for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
-                col = cols[idx % num_cols]
-                with col:
-                    with st.container():
-                        article_url = entry.link
-                        post_id = hashlib.md5(article_url.encode()).hexdigest()  # Generate unique post ID
+        for idx, (entry, (content, image)) in enumerate(zip(filtered_entries, articles)):
+            col = cols[idx % num_cols]
+            with col:
+                with st.container():
+                    article_url = entry.link
+                    post_id = hashlib.md5(article_url.encode()).hexdigest()  # Generate unique post ID
 
-                        card_color = "#444444" if dark_mode else "#f9f9f9"
-                        text_color = "#ffffff" if dark_mode else "#000000"
+                    card_color = "#444444" if dark_mode else "#f9f9f9"
+                    text_color = "#ffffff" if dark_mode else "#000000"
 
-                        card_html = f"""
-                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
-                            <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
-                            <p style="color: {text_color};">{entry.summary}</p>
-                        """
-                        if image:
-                            card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
+                    card_html = f"""
+                    <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
+                        <p style="color: {text_color};">{entry.summary}</p>
+                    """
+                    if image:
+                        card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
 
-                        card_html += "</div>"
-                        st.markdown(card_html, unsafe_allow_html=True)
+                    card_html += "</div>"
+                    st.markdown(card_html, unsafe_allow_html=True)
 
-                        col1, col2, col3 = st.columns([1, 1, 1])
-                        
-                        with col3:
-                            if st.button(":arrow_down:", key=f"save_{idx}"):
-                                st.session_state.saved_posts.append({
-                                    'title': entry.title,
-                                    'summary': entry.summary,
-                                    'link': article_url
-                                })
-                                st.success(f"Saved {entry.title}")
-                                st.experimental_rerun()
-                        
-                        with col1:
-                            create_social_media_share_button(entry.title, post_id)
+                    col1, col2, col3 = st.columns([1, 1, 1])
+                    
+                    with col3:
+                        if st.button(":arrow_down:", key=f"save_{idx}"):
+                            st.session_state.saved_posts.append({
+                                'title': entry.title,
+                                'summary': entry.summary,
+                                'link': article_url
+                            })
+                            st.success(f"Saved {entry.title}")
+                            st.experimental_rerun()
+                    
+                    with col1:
+                        create_social_media_share_button(entry.title, post_id)
 
-                        if content:
-                            poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
-                            if poll_type == "yes_no":
-                                options = ["Yes", "No"]
-                            else:
-                                relevant_entities = extract_relevant_entities(content)
-                                entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
-                                sorted_entities = sorted(entity_counts.items(), key=lambda x: 1, reverse=True)
-                                options = [entity[0] for entity in sorted_entities[:5]]
-
-                            hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
-
-                            if options:
-                                if check_login():
-                                    create_poll_with_options(entry.link, hashtag_options)
-                                else:
-                                    st.warning("Please register anonymously to have your say")
-                                    if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
-                                        st.write("*Dont worry all users will remain anonymous,your data is yours")
-                                        st.session_state['page'] = "Register"
-                                        st.experimental_rerun()
-                            else:
-                                st.write("No relevant entities found for voting.")
-
+                    if content:
+                        poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
+                        if poll_type == "yes_no":
+                            options = ["Yes", "No"]
                         else:
-                            st.write("No content available for deeper analysis.")
-            else:
-             st.error("Failed to fetch trending news.")
+                            relevant_entities = extract_relevant_entities(content)
+                            entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
+                            sorted_entities = sorted(entity_counts.items(), key=lambda x: 1, reverse=True)
+                            options = [entity[0] for entity in sorted_entities[:5]]
+
+                        hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
+
+                        if options:
+                            if check_login():
+                                create_poll_with_options(entry.link, hashtag_options)
+                            else:
+                                st.warning("Please register anonymously to have your say")
+                                if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
+                                    st.write("*Dont worry all users will remain anonymous,your data is yours")
+                                    st.session_state['page'] = "Register"
+                                    st.experimental_rerun()
+                        else:
+                            st.write("No relevant entities found for voting.")
+
+                    else:
+                        st.write("No content available for deeper analysis.")
+    else:
+        st.error("Failed to fetch trending news.")
 
 st.markdown("""
 <style>
