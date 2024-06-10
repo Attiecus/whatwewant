@@ -464,14 +464,14 @@ def main():
             return entries
         filtered_entries = []
         for entry in entries:
-            if query.lower() in entry.title.lower() or query.lower() in entry.summary.lower():
+            if query.lower() in entry.title.lower() or (hasattr(entry, 'summary') and query.lower() in entry.summary.lower()):
                 filtered_entries.append(entry)
         return filtered_entries
 
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
     st.image("logo.png", use_column_width=True,width=500, output_format="PNG", caption="")
-    st.header("HAVE YOUR SAY")
+    
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
@@ -540,7 +540,7 @@ def main():
                         card_html = f"""
                         <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
                             <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
-                            <p style="color: {text_color};">{entry.summary}</p>
+                            <p style="color: {text_color};">{getattr(entry, 'summary', 'No summary available')}</p>
                         """
                         if image:
                             card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
@@ -554,7 +554,7 @@ def main():
                             if st.button(":arrow_down:", key=f"save_{idx}"):
                                 st.session_state.saved_posts.append({
                                     'title': entry.title,
-                                    'summary': entry.summary,
+                                    'summary': getattr(entry, 'summary', 'No summary available'),
                                     'link': article_url
                                 })
                                 st.success(f"Saved {entry.title}")
