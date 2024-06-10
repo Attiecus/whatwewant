@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 from urllib.parse import urlencode, parse_qs, urlparse
 import random
+import streamlit.components.v1 as components
 
 # Initialize cookie manager
 st.set_page_config(layout='wide', page_title='EKO')
@@ -95,9 +96,6 @@ def register_anonymous():
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
 
-# Add JavaScript for page reload on drag down
-
-
 # Logout function
 def logout():
     if st.sidebar.button("Logout", key="logout_button"):
@@ -167,6 +165,7 @@ def filter_articles_by_date(feed, days=2):
 
 def create_social_media_share_button(article_title, post_id):
     website_url = f"https://voices.streamlit.app?post_id={post_id}"
+    article_url = f"https://news.article.url/{post_id}"  # Replace with the actual article URL logic
     twitter_url = f"https://twitter.com/intent/tweet?url={website_url}&text={article_title}"
     facebook_url = f"https://www.facebook.com/sharer/sharer.php?u={website_url}"
     linkedin_url = f"https://www.linkedin.com/shareArticle?mini=true&url={website_url}&title={article_title}"
@@ -179,6 +178,8 @@ def create_social_media_share_button(article_title, post_id):
             .
         </button>
         <div class="dropdown-content">
+            <a href="#" onclick="copyToClipboard('{website_url}')">Copy Website Link</a>
+            <a href="#" onclick="copyToClipboard('{article_url}')">Copy Article Link</a>
             <a href="{twitter_url}" target="_blank">Twitter</a>
             <a href="{facebook_url}" target="_blank">Facebook</a>
             <a href="{linkedin_url}" target="_blank">LinkedIn</a>
@@ -245,17 +246,20 @@ def create_social_media_share_button(article_title, post_id):
         }}
     </style>
     """
-    st.markdown(buttons_html, unsafe_allow_html=True)
-st.markdown("""
-    <style>
-    .stButton > button {
-        display: block;
-        margin-left: auto;
-        margin-right: auto;
-        width: 50%;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+
+    components.html(f"""
+    {buttons_html}
+    <script>
+        function copyToClipboard(text) {{
+            navigator.clipboard.writeText(text).then(function() {{
+                alert('Copied to clipboard');
+            }}, function(err) {{
+                console.error('Could not copy text: ', err);
+            }});
+        }}
+    </script>
+    """, height=200)
+
 def create_poll_with_options(article_id, options):
     vote_key = f"votes_{article_id}"
 
@@ -285,7 +289,7 @@ def create_poll_with_options(article_id, options):
 
     st.write("---")
 
-    if any(count > 0 for count in votes.values()):
+    if any (count > 0 for count in votes.values()):
         st.write("Current Poll Results:")
         total_votes = sum(votes.values())
         for option, count in votes.items():
@@ -525,15 +529,7 @@ def main():
             display: block;
         }
     </style>
-    <script>
-        function copyToClipboard(text) {
-            navigator.clipboard.writeText(text).then(function() {
-                alert('Copied to clipboard');
-            }, function(err) {
-                console.error('Could not copy text: ', err);
-            });
-        }
-    </script>
+   
     """, unsafe_allow_html=True)
     
     st.image("logo.png", use_column_width=True, width=500, output_format="PNG", caption="")
@@ -690,6 +686,8 @@ st.markdown("""
         top: 10px;
         right: 10px;
         cursor: pointer;
+        font-size: 24px; /* Increase font size */
+        line-height: 24px; /* Match line height to font size */
     }
     .dropdown {
         position: relative;
@@ -710,6 +708,7 @@ st.markdown("""
         padding: 12px 16px;
         text-decoration: none;
         display: block;
+        text-align: left;
     }
     .dropdown-content a:hover {
         background-color: #f1f1f1;
@@ -718,39 +717,6 @@ st.markdown("""
         display: block;
     }
 </style>
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        var dropdowns = document.querySelectorAll('.dropdown');
-        dropdowns.forEach(function(dropdown) {
-            dropdown.addEventListener('click', function(event) {
-                event.stopPropagation();
-                closeAllDropdowns();
-                dropdown.querySelector('.dropdown-content').classList.toggle('show');
-            });
-        });
-        
-        window.onclick = function(event) {
-            if (!event.target.matches('.three-dots')) {
-                closeAllDropdowns();
-            }
-        };
-        
-        function closeAllDropdowns() {
-            var dropdownContents = document.querySelectorAll('.dropdown-content');
-            dropdownContents.forEach(function(content) {
-                content.classList.remove('show');
-            });
-        }
-    });
-
-    function copyToClipboard(text) {
-        navigator.clipboard.writeText(text).then(function() {
-            alert('Copied to clipboard');
-        }, function(err) {
-            console.error('Could not copy text: ', err);
-        });
-    }
-</script>
 """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
