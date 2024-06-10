@@ -19,7 +19,7 @@ from urllib.parse import urlencode, parse_qs, urlparse
 import random
 
 # Initialize cookie manager
-st.set_page_config(layout='wide', page_title='Echo')
+st.set_page_config(layout='wide', page_title='EKO')
 
 # Check if Firebase app is already initialized
 if not firebase_admin._apps:
@@ -98,8 +98,6 @@ def register_anonymous():
 # Add JavaScript for page reload on drag down
 
 
-
-
 # Logout function
 def logout():
     if st.sidebar.button("Logout", key="logout_button"):
@@ -125,17 +123,17 @@ def track_vote(article_id):
 
 # Tutorial function
 def tutorial():
-    st.markdown("<h2 style='text-align: center;'>Welcome to ECHO!</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center;'>Welcome to EKO!</h2>", unsafe_allow_html=True)
     st.write("""
-    **ECHO** is a platform designed to give you a voice on trending news topics, especially in a world where voices are often unheard or suppressed by those in power. Here's how it works:
+    **EKO** is a platform designed to give you a voice on trending news topics, especially in a world where voices are often unheard or suppressed by those in power. Here's how it works:
     
     1. **Browse News Articles**: Find news articles from various sources.
     2. **UPROAR on News**: Vote on news articles by sharing your opinion through polls.
     3. **See Results**: View how others have voted and the geographical distribution of votes.
 
-    **Why ECHO?**
+    **Why EKO?**
 
-    In an era where the mainstream media is often controlled by powerful entities, it can be difficult for ordinary people to make their voices heard. ECHO empowers you to speak out on news channels about what you stand for, without the fear of being exposed or censored. Your voice matters, and ECHO ensures it is heard.
+    In an era where the mainstream media is often controlled by powerful entities, it can be difficult for ordinary people to make their voices heard. EKO empowers you to speak out on news channels about what you stand for, without the fear of being exposed or censored. Your voice matters, and EKO ensures it is heard.
 
     **Getting Started**:
     - **Register**: Sign up with your email, or register anonymously to protect your identity.
@@ -151,7 +149,7 @@ def tutorial():
     - **Freedom of Speech**: Share your opinions without fear of censorship.
     - **Community Engagement**: See how others feel about the same topics and participate in a global conversation.
 
-    Enjoy using **ECHO** and make your voice heard!
+    Enjoy using **EKO** and make your voice heard!
     """)
 
     if st.button("Read less"):
@@ -175,10 +173,10 @@ def create_social_media_share_button(article_title, post_id):
     instagram_url = f"https://www.instagram.com/?url={website_url}"
 
     buttons_html = f"""
-    <div class="dropdown" style="display: inline-block; margin-left: 10px;">
+    <div class="dropdown" style="display: inline-block; margin-right:5px 0px;margin-top:0;">
         <button class="dropbtn">
             <img src="https://img.icons8.com/material-outlined/24/000000/share.png" alt="Share Icon" style="vertical-align: middle; margin-right: 5px;"/>
-            -
+            .
         </button>
         <div class="dropdown-content">
             <a href="{twitter_url}" target="_blank">Twitter</a>
@@ -378,7 +376,12 @@ def main():
                     data.append({'lat': lat, 'lon': lon})
         return data
 
- 
+    def toggle_voting_section():
+        if 'show_voting_section' not in st.session_state:
+            st.session_state['show_voting_section'] = True
+        show_voting_section = st.session_state['show_voting_section']
+        return st.checkbox("Show/Hide Voting Section", value=show_voting_section, key='toggle_voting')
+
     def toggle_dark_light_mode():
         st.session_state['dark_mode'] = st.sidebar.checkbox("Dark Mode", value=st.session_state['dark_mode'])
         return st.session_state['dark_mode']
@@ -391,12 +394,16 @@ def main():
                 font-weight: bold;
                 font-size: 7em;
                 text-align: center;
+                margin-top: 0; /* Remove top margin */
+                padding-top: 0; /* Remove top padding */
             }
             h2 {
-                font-family: 'Boston';
+                font-family: 'Arial';
                 font-weight: bold;
                 text-align: center;
                 font-size:2em
+                margin-top: 0; /* Remove top margin */
+                padding-top: 0; /* Remove top padding */
             }
             @media (max-width: 768px) {
                 h1 {
@@ -460,29 +467,14 @@ def main():
             if query.lower() in entry.title.lower() or query.lower() in entry.summary.lower():
                 filtered_entries.append(entry)
         return filtered_entries
+
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
-
-    # Display the logo image centered and large
-    st.markdown(
-        """
-        <style>
-        .centered-logo {
-            display: block;
-            margin-left: auto;
-            margin-right: auto;
-            width: 60%;  /* Adjust the width to make the image bigger */
-            margin-top: 20px;  /* Adjust the margin to lower the image */
-            margin-bottom: -20px;  /* Adjust the margin to reduce the gap */
-        }
-        </style>
-        """, 
-        unsafe_allow_html=True
-    )
     st.image("logo.png", use_column_width=True,width=500, output_format="PNG", caption="")
     st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
+
     news_sources = {
         "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
         "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
@@ -500,6 +492,7 @@ def main():
     else:
         feed = feedparser.parse(feed_url)
 
+    show_voting_section = toggle_voting_section()
 
     with st.sidebar:
         st.header("Saved Articles")
@@ -522,12 +515,12 @@ def main():
         else:
             st.write("No articles saved.")
 
-  
+    if show_voting_section:
         # Filter articles by date (past 2 days)
-    filtered_entries = filter_articles_by_date(feed, days=2)
+        filtered_entries = filter_articles_by_date(feed, days=2)
         # Further filter articles based on user query
-    filtered_entries = search_articles(filtered_entries, user_query)
-    if filtered_entries:
+        filtered_entries = search_articles(filtered_entries, user_query)
+        if filtered_entries:
             num_cols = min(len(filtered_entries), 3)
             cols = st.columns(num_cols)
 
@@ -557,7 +550,7 @@ def main():
 
                         col1, col2, col3 = st.columns([1, 1, 1])
                         
-                        with col3:
+                        with col2:
                             if st.button(":arrow_down:", key=f"save_{idx}"):
                                 st.session_state.saved_posts.append({
                                     'title': entry.title,
@@ -569,6 +562,8 @@ def main():
                         
                         with col1:
                             create_social_media_share_button(entry.title, post_id)
+                    
+                            
 
                         if content:
                             poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
@@ -596,8 +591,8 @@ def main():
 
                         else:
                             st.write("No content available for deeper analysis.")
-            else:
-             st.error("Failed to fetch trending news.")
+        else:
+            st.error("Failed to fetch trending news.")
 
 st.markdown("""
 <style>
