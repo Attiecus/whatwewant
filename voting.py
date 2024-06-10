@@ -40,6 +40,17 @@ if not cookies.ready():
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+# Function to get or create a unique anonymous ID
+def get_anonymous_id():
+    anonymous_id = cookies.get("anonymous_id")
+    if not anonymous_id:
+        anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
+        random_name = f"User{random.randint(1000, 9999)}"
+        cookies["anonymous_id"] = anonymous_id
+        cookies["anonymous_name"] = random_name
+        cookies.save()
+    return anonymous_id
+
 # Check if user is logged in
 def check_login():
     if "user" in st.session_state:
@@ -61,13 +72,7 @@ def register_anonymous():
     
     try:
         if st.button("Register as Anonymous", key="anonymous_register_button"):
-            anonymous_id = cookies.get("anonymous_id")
-            if not anonymous_id:
-                anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
-                random_name = f"User{random.randint(1000, 9999)}"
-                cookies["anonymous_id"] = anonymous_id
-                cookies["anonymous_name"] = random_name
-                cookies.save()
+            anonymous_id = get_anonymous_id()
             try:
                 # Check if the user already exists
                 try:
@@ -289,7 +294,7 @@ def create_poll_with_options(article_id, options):
 
     st.write("---")
 
-    if any (count > 0 for count in votes.values()):
+    if any(count > 0 for count in votes.values()):
         st.write("Current Poll Results:")
         total_votes = sum(votes.values())
         for option, count in votes.items():
@@ -717,6 +722,15 @@ st.markdown("""
         display: block;
     }
 </style>
+<script>
+    function copyToClipboard(text) {{
+        navigator.clipboard.writeText(text).then(function() {{
+            alert('Copied to clipboard');
+        }}, function(err) {{
+            console.error('Could not copy text: ', err);
+        }});
+    }}
+</script>
 """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
