@@ -432,6 +432,9 @@ def main():
                 background-color: #444444;
                 color: #ffffff;
             }
+            .three-dots {
+                color: #ffffff;
+            }
         </style>
         """
         light_css = """
@@ -451,6 +454,9 @@ def main():
                 background-color: #ffffff;
                 color: #000000;
             }
+            .three-dots {
+                color: #000000;
+            }
         </style>
         """
         if dark_mode:
@@ -464,14 +470,74 @@ def main():
             return entries
         filtered_entries = []
         for entry in entries:
-            if query.lower() in entry.title.lower() or (hasattr(entry, 'summary') and query.lower() in entry.summary.lower()):
+            if query.lower() in entry.title.lower() or query.lower() in entry.summary.lower():
                 filtered_entries.append(entry)
         return filtered_entries
 
     dark_mode = toggle_dark_light_mode()
     set_custom_css(dark_mode)
-    st.image("logo.png", use_column_width=True,width=500, output_format="PNG", caption="")
     
+    st.markdown("""
+    <style>
+        .card {
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 10px;
+            box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease-in-out;
+            position: relative;
+        }
+        .card:hover {
+            transform: scale(1.05);
+        }
+        .button-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        .three-dots {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: pointer;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: #f9f9f9;
+            min-width: 160px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1;
+            border-radius: 10px;
+        }
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+        }
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+        .dropdown:hover .dropdown-content {
+            display: block;
+        }
+    </style>
+    <script>
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                alert('Copied to clipboard');
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+    </script>
+    """, unsafe_allow_html=True)
+    
+    st.image("logo.png", use_column_width=True, width=500, output_format="PNG", caption="")
+    st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
@@ -536,34 +602,40 @@ def main():
 
                         card_color = "#444444" if dark_mode else "#f9f9f9"
                         text_color = "#ffffff" if dark_mode else "#000000"
+                        three_dots_color = "#ffffff" if dark_mode else "#000000"
 
                         card_html = f"""
                         <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
                             <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
-                            <p style="color: {text_color};">{getattr(entry, 'summary', 'No summary available')}</p>
+                            <p style="color: {text_color};">{entry.summary}</p>
                         """
                         if image:
                             card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
 
-                        card_html += "</div>"
+                        card_html += f"""
+                            <div class="button-container">
+                                <div class="three-dots dropdown" style="color: {three_dots_color};">
+                                    &#x22EE;
+                                    <div class="dropdown-content">
+                                        <a href="#" onclick="copyToClipboard('{article_url}')">Copy Link</a>
+                                        <a href="https://twitter.com/intent/tweet?url={article_url}&text={entry.title}" target="_blank">Share on Twitter</a>
+                                        <a href="https://www.facebook.com/sharer/sharer.php?u={article_url}" target="_blank">Share on Facebook</a>
+                                        <a href="https://www.linkedin.com/shareArticle?mini=true&url={article_url}&title={entry.title}" target="_blank">Share on LinkedIn</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        """
                         st.markdown(card_html, unsafe_allow_html=True)
 
-                        col1, col2, col3 = st.columns([1, 1, 1])
-                        
-                        with col2:
-                            if st.button(":arrow_down:", key=f"save_{idx}"):
-                                st.session_state.saved_posts.append({
-                                    'title': entry.title,
-                                    'summary': getattr(entry, 'summary', 'No summary available'),
-                                    'link': article_url
-                                })
-                                st.success(f"Saved {entry.title}")
-                                st.experimental_rerun()
-                        
-                        with col1:
-                            create_social_media_share_button(entry.title, post_id)
-                    
-                            
+                        if st.button("Save", key=f"save_button_{idx}"):
+                            st.session_state.saved_posts.append({
+                                'title': entry.title,
+                                'summary': entry.summary,
+                                'link': article_url
+                            })
+                            st.success(f"Saved {entry.title}")
+                            st.experimental_rerun()
 
                         if content:
                             poll_type = determine_poll_type({'title': entry.title, 'description': entry.summary})
@@ -572,7 +644,7 @@ def main():
                             else:
                                 relevant_entities = extract_relevant_entities(content)
                                 entity_counts = {entity: relevant_entities.count(entity) for entity in set(relevant_entities)}
-                                sorted_entities = sorted(entity_counts.items(), key=lambda x: 1, reverse=True)
+                                sorted_entities = sorted(entity_counts.items(), key=lambda x: x[1], reverse=True)
                                 options = [entity[0] for entity in sorted_entities[:5]]
 
                             hashtag_options = [f"#{option.replace(' ', '')}" for option in options]
@@ -603,17 +675,82 @@ st.markdown("""
         margin: 10px;
         box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
         transition: transform 0.3s ease-in-out;
+        position: relative;
     }
     .card:hover {
         transform: scale(1.05);
     }
-    .block-container {
-        padding: 1rem 1rem 10rem 1rem;
+    .button-container {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 10px;
     }
-    [data-testid="stHorizontalBlock"] {
-        overflow-x: auto;
+    .three-dots {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        cursor: pointer;
+    }
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        right: 0;
+        background-color: #f9f9f9;
+        min-width: 160px;
+        box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+        z-index: 1;
+        border-radius: 10px;
+    }
+    .dropdown-content a {
+        color: black;
+        padding: 12px 16px;
+        text-decoration: none;
+        display: block;
+    }
+    .dropdown-content a:hover {
+        background-color: #f1f1f1;
+    }
+    .show {
+        display: block;
     }
 </style>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var dropdowns = document.querySelectorAll('.dropdown');
+        dropdowns.forEach(function(dropdown) {
+            dropdown.addEventListener('click', function(event) {
+                event.stopPropagation();
+                closeAllDropdowns();
+                dropdown.querySelector('.dropdown-content').classList.toggle('show');
+            });
+        });
+        
+        window.onclick = function(event) {
+            if (!event.target.matches('.three-dots')) {
+                closeAllDropdowns();
+            }
+        };
+        
+        function closeAllDropdowns() {
+            var dropdownContents = document.querySelectorAll('.dropdown-content');
+            dropdownContents.forEach(function(content) {
+                content.classList.remove('show');
+            });
+        }
+    });
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function() {
+            alert('Copied to clipboard');
+        }, function(err) {
+            console.error('Could not copy text: ', err);
+        });
+    }
+</script>
 """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
