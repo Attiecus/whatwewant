@@ -72,7 +72,13 @@ def register_anonymous():
     
     try:
         if st.button("Register as Anonymous", key="anonymous_register_button"):
-            anonymous_id = get_anonymous_id()
+            anonymous_id = cookies.get("anonymous_id")
+            if not anonymous_id:
+                anonymous_id = user_id  # Use the consistent user ID
+                random_name = f"User{random.randint(1000, 9999)}"
+                cookies["anonymous_id"] = anonymous_id
+                cookies["anonymous_name"] = random_name
+                cookies.save()
             try:
                 # Check if the user already exists
                 try:
