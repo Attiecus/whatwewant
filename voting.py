@@ -607,6 +607,12 @@ st.markdown("""
     .card:hover {
         transform: scale(1.05);
     }
+    .block-container {
+        padding: 1rem 1rem 10rem 1rem;
+    }
+    [data-testid="stHorizontalBlock"] {
+        overflow-x: auto;
+    }
 </style>
 """, unsafe_allow_html=True)
 
