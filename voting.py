@@ -26,6 +26,9 @@ st.markdown("""
 <style>
 body {
     transition: all 0.5s ease-in-out;
+    background: linear-gradient(45deg, #1e3c72, #2a5298);
+    background-size: 400% 400%;
+    animation: gradientBG 15s ease infinite;
 }
 body::-webkit-scrollbar {
     width: 12px;               /* Width of the entire scrollbar */
@@ -43,6 +46,18 @@ body::-webkit-scrollbar-thumb {
 
 body::-webkit-scrollbar-thumb:hover {
     background-color: #555;    /* Color of the thumb on hover */
+}
+
+@keyframes gradientBG {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
