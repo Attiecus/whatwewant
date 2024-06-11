@@ -504,8 +504,8 @@ def main():
                 color: #ffffff !important;
             }
             .stApp {
-                background: rgb(0,0,0);
-background: linear-gradient(90deg, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 100%);
+               background: rgb(10,226,214);
+background: linear-gradient(0deg, rgba(10,226,214,1) 0%, rgba(0,0,0,1) 17%);
                 color: #ffffff !important;
             }
             .stSidebar {
