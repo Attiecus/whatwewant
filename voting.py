@@ -77,6 +77,8 @@ def check_login():
             voted_articles_cookie = controller.get('voted_articles')
             if not voted_articles_cookie:  # If None or empty, set to empty list
                 voted_articles_cookie = "[]"
+            elif not isinstance(voted_articles_cookie, str):
+                voted_articles_cookie = json.dumps(voted_articles_cookie)
             try:
                 st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
                 if not isinstance(st.session_state["voted_articles"], list):
@@ -103,7 +105,7 @@ user_id = get_or_create_user_id()
 # Register function using Firebase Authentication
 def register_anonymous():
     st.markdown("<h2 style='text-align: center;'>Register as Anonymous</h2>", unsafe_allow_html=True)
-    
+
     try:
         if st.button("Register as Anonymous", key="anonymous_register_button"):
             anonymous_id = controller.get("anonymous_id")
@@ -123,6 +125,8 @@ def register_anonymous():
                     voted_articles_cookie = controller.get('voted_articles')
                     if not voted_articles_cookie:  # If None or empty, set to empty list
                         voted_articles_cookie = "[]"
+                    elif not isinstance(voted_articles_cookie, str):
+                        voted_articles_cookie = json.dumps(voted_articles_cookie)
                     
                     st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
                     controller.set("user", anonymous_id)
@@ -142,9 +146,6 @@ def register_anonymous():
 
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
-
-
-
 # Logout function
 def logout():
     if st.sidebar.button("Logout", key="logout_button"):
