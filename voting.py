@@ -545,8 +545,8 @@ background: linear-gradient(270deg, rgba(249,249,249,1) 0%, rgba(1,5,29,1) 0%, r
                 box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
                 transition: transform 0.3s ease-in-out;
                 position: relative;
-                background: rgb(249,249,249);
-background: linear-gradient(180deg, rgba(249,249,249,1) 0%, rgba(26,1,29,1) 51%, rgba(0,224,255,1) 100%);
+                background: rgb(34,193,195);
+background: radial-gradient(circle, rgba(34,193,195,1) 0%, rgba(233,194,111,1) 100%);
             }
             .card:hover {
                 transform: scale(1.05);
