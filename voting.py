@@ -590,7 +590,7 @@ def main():
         "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
         "RTE": "https://www.rte.ie/rss/news.xml",
         "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
-        "Sky Sports": "https://www.skysports.com/rss",  # Sky Sports RSS feed
+        "Sky Sports": "https://www.skysports.com/rss/home.xml",  # Sky Sports RSS feed
         "Business Insider": "https://www.businessinsider.com/rss"  # Business Insider RSS feed
     }
 
