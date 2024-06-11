@@ -677,7 +677,7 @@ background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%)
 }
     news_source = st.selectbox("Select news source:", list(news_sources.keys()))
     feed_url = news_sources[news_source]
-    text_color = "#ffffff" if dark_mode else "#000000"
+    text_color = "#000000" 
 
     if st.button("Reload Feed"):
         feed = feedparser.parse(feed_url)
