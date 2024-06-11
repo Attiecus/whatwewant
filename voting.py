@@ -516,8 +516,8 @@ background: linear-gradient(180deg, rgba(1,2,14,1) 84%, rgba(41,232,188,1) 100%)
                 color: #1E90FF !important;
             }
             .stButton button {
-                background: rgb(249,249,249);
-background: linear-gradient(270deg, rgba(249,249,249,1) 0%, rgba(1,5,29,1) 0%, rgba(255,0,104,1) 83%);
+                background: rgb(1,20,29);
+background: linear-gradient(275deg, rgba(1,20,29,1) 41%, rgba(209,0,255,1) 98%);
                 color: #ffffff !important;
             }
             .stTextInput input {
@@ -535,8 +535,8 @@ background: linear-gradient(270deg, rgba(249,249,249,1) 0%, rgba(1,5,29,1) 0%, r
                 box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
                 transition: transform 0.3s ease-in-out;
                 position: relative;
-                background: rgb(34,193,195);
-background: radial-gradient(circle, rgba(34,193,195,1) 0%, rgba(233,194,111,1) 100%);
+                background: rgb(1,25,29);
+background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%);
             }
             .card:hover {
                 transform: scale(1.05);
@@ -662,7 +662,7 @@ background: radial-gradient(circle, rgba(34,193,195,1) 0%, rgba(233,194,111,1) 1
      
         
     st.image("logo.png", use_column_width=True, width=500, output_format="PNG", caption="")
-    st.header("  Trending news")
+    st.header("HAVE YOUR SAY")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
