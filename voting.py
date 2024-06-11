@@ -20,8 +20,15 @@ import random
 import streamlit.components.v1 as components
 
 # Initialize cookie manager
-st.set_page_config(layout='wide', page_title='EKO')
 
+st.set_page_config(layout='wide', page_title='EKO')
+st.markdown("""
+<style>
+body {
+    transition: all 0.5s ease-in-out;
+}
+</style>
+""", unsafe_allow_html=True)
 # Initialize Firebase
 if not firebase_admin._apps:
     try:
@@ -69,8 +76,6 @@ if 'anonymous_id' not in st.session_state:
     get_persistent_anonymous_id()
 
 # Check if user is logged in
-# Check if user is logged in
-# Check if user is logged in
 def check_login():
     if "user" in st.session_state:
         if "voted_articles" not in st.session_state:
@@ -89,7 +94,6 @@ def check_login():
     else:
         return False
 
-
 def get_or_create_user_id():
     user_id = controller.get("user_id")
     if not user_id:
@@ -100,8 +104,6 @@ def get_or_create_user_id():
 # Use the user ID across sessions
 user_id = get_or_create_user_id()
 
-# Register function using Firebase Authentication
-# Register function using Firebase Authentication
 # Register function using Firebase Authentication
 def register_anonymous():
     st.markdown("<h2 style='text-align: center;'>Register as Anonymous</h2>", unsafe_allow_html=True)
@@ -121,13 +123,13 @@ def register_anonymous():
                     st.warning("Anonymous user ID already exists. Logging in with existing ID.")
                     st.session_state["user"] = anonymous_id
                     st.session_state["username"] = controller.get("anonymous_name")
-                    
+
                     voted_articles_cookie = controller.get('voted_articles')
                     if not voted_articles_cookie:  # If None or empty, set to empty list
                         voted_articles_cookie = "[]"
                     elif not isinstance(voted_articles_cookie, str):
                         voted_articles_cookie = json.dumps(voted_articles_cookie)
-                    
+
                     st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
                     controller.set("user", anonymous_id)
                     st.session_state['page'] = "Main"  # Set the page to Main after successful login
@@ -146,6 +148,7 @@ def register_anonymous():
 
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
+
 # Logout function
 def logout():
     if st.sidebar.button("Logout", key="logout_button"):
@@ -167,6 +170,48 @@ def track_vote(article_id):
         st.warning("You have already voted on this article.")
         return False
 
+# Main function to demonstrate cookies and user session handling
+def main():
+    st.header("EKO - Your Voice Matters")
+
+    # Check if the user is already logged in
+    if "user" not in st.session_state and controller.get('anonymous_id'):
+        register_anonymous()
+    if "anonymous_id" in st.session_state:
+        anonymous_id = st.session_state["anonymous_id"]
+        st.session_state["user"] = anonymous_id
+        st.session_state["username"] = controller.get("anonymous_name")
+        
+        voted_articles_cookie = controller.get('voted_articles')
+        if not voted_articles_cookie:  # If None or empty, set to empty list
+            voted_articles_cookie = "[]"
+        elif not isinstance(voted_articles_cookie, str):
+            voted_articles_cookie = json.dumps(voted_articles_cookie)
+        
+        try:
+            st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
+        except json.JSONDecodeError:
+            st.session_state["voted_articles"] = []  # Fallback to an empty list if decoding fails
+
+    if check_login():
+        st.sidebar.write(f"Welcome, {st.session_state['username']}!")
+        logout()
+    else:
+        st.write("You are not logged in. Please register anonymously to continue.")
+        register_anonymous()
+    
+    # Example of using cookies to track votes
+    def track_vote(article_id):
+        if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
+            st.session_state["voted_articles"] = []
+
+        if article_id not in st.session_state["voted_articles"]:
+            st.session_state["voted_articles"].append(article_id)
+            controller.set("voted_articles", json.dumps(st.session_state["voted_articles"]))
+            return True
+        else:
+            st.warning("You have already voted on this article.")
+            return False
 # Tutorial function
 def tutorial():
     st.markdown("<h2 style='text-align: center;'>Welcome to EKO!</h2>", unsafe_allow_html=True)
@@ -438,7 +483,7 @@ def main():
         st.session_state['dark_mode'] = st.sidebar.checkbox("Dark Mode", value=st.session_state['dark_mode'])
         return st.session_state['dark_mode']
 
-    def set_custom_css(dark_mode):
+    def set_custom_css():
         css = """
         <style>
             h1 {
@@ -453,7 +498,7 @@ def main():
                 font-family: 'Arial';
                 font-weight: bold;
                 text-align: center;
-                font-size:2em
+                font-size:2em;
                 margin-top: 0; /* Remove top margin */
                 padding-top: 0; /* Remove top padding */
             }
@@ -465,56 +510,96 @@ def main():
                     font-size: 1.5em;
                 }
             }
-        </style>
-        """
-        dark_css = """
-        <style>
             body {
-                background-color: #000000;
-                color: #000000;
+                background-color: #121212 !important;
+                color: #ffffff !important;
+            }
+            .stApp {
+                background-color: #121212 !important;
+                color: #ffffff !important;
+            }
+            .stSidebar {
+                background-color: #000000 !important;
+                color: #ffffff !important;
             }
             a {
-                color: #1E90FF;
+                color: #1E90FF !important;
             }
             .stButton button {
-                background-color: #444444;
-                color: #ffffff;
+                background-color: #444444 !important;
+                color: #ffffff !important;
             }
             .stTextInput input {
+                background-color: #444444 !important;
+                color: #ffffff !important;
+            }
+            .three-dots {
+                color: #ffffff !important;
+            }
+            .card {
+                border: 1px solid #444444;
+                border-radius: 10px;
+                padding: 20px;
+                margin: 10px;
+                box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+                transition: transform 0.3s ease-in-out;
+                position: relative;
+                background-color: #333333;
+            }
+            .card:hover {
+                transform: scale(1.05);
+            }
+            .button-container {
+                display: flex;
+                justify-content: flex-end;
+                margin-top: 10px;
+            }
+            .three-dots {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                cursor: pointer;
+                font-size: 24px;
+                line-height: 24px;
+            }
+            .dropdown {
+                position: relative;
+                display: inline-block;
+            }
+            .dropdown-content {
+                display: none;
+                position: absolute;
+                right: 0;
                 background-color: #444444;
-                color: #ffffff;
+                min-width: 160px;
+                box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+                z-index: 1;
+                border-radius: 10px;
             }
-            .three-dots {
-                color: #ffffff;
+            .dropdown-content a {
+                color: white;
+                padding: 12px 16px;
+                text-decoration: none;
+                display: block;
+                text-align: left;
             }
-        </style>
-        """
-        light_css = """
-        <style>
-            body {
-                background-color: #ffffff;
-                color: #000000;
+            .dropdown-content a:hover {
+                background-color: #555555;
             }
-            a {
-                color: #1E90FF;
-            }
-            .stButton button {
-                background-color: #f0f0f0;
-                color: #000000;
-            }
-            .stTextInput input {
-                background-color: #ffffff;
-                color: #000000;
-            }
-            .three-dots {
-                color: #000000;
+            .show {
+                display: block;
             }
         </style>
+        <script>
+            function copyToClipboard(text) {
+                navigator.clipboard.writeText(text).then(function() {
+                    alert('Copied to clipboard');
+                }, function(err) {
+                    console.error('Could not copy text: ', err);
+                });
+            }
+        </script>
         """
-        if dark_mode:
-            st.markdown(dark_css, unsafe_allow_html=True)
-        else:
-            st.markdown(light_css, unsafe_allow_html=True)
         st.markdown(css, unsafe_allow_html=True)
 
     def search_articles(entries, query):
@@ -527,8 +612,19 @@ def main():
         return filtered_entries
 
     dark_mode = toggle_dark_light_mode()
-    set_custom_css(dark_mode)
-    
+    set_custom_css()
+    st.markdown("""
+    <style>
+    .stButton button {
+        transition: background-color 0.3s ease, color 0.3s ease;
+    }
+    .stButton button:hover {
+        background-color: #1E90FF;
+        color: #ffffff;
+        transform: scale(1.05);
+    }
+    </style>
+    """, unsafe_allow_html=True)
     st.markdown("""
     <style>
         .card {
@@ -537,11 +633,11 @@ def main():
             padding: 20px;
             margin: 10px;
             box-shadow: 2px 2px 10px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease-in-out;
-            position: relative;
+            transition: transform 0.3s ease-in-out, box-shadow 0.3s ease-in-out;
         }
         .card:hover {
             transform: scale(1.05);
+            box-shadow: 2px 2px 20px rgba(0,0,0,0.2);
         }
         .button-container {
             display: flex;
@@ -579,7 +675,8 @@ def main():
     </style>
    
     """, unsafe_allow_html=True)
-    
+     
+        
     st.image("logo.png", use_column_width=True, width=500, output_format="PNG", caption="")
     st.header("HAVE YOUR SAY")
 
@@ -592,16 +689,17 @@ def main():
     "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
     "ESPN": "https://www.espn.com/espn/rss/news",
     "Business Insider": "https://www.businessinsider.com/rss",
-    "Bloomberg": "https://www.bloomberg.com/rss"
+    "The Guardian": "https://www.theguardian.com/world/rss"
 }
-
     news_source = st.selectbox("Select news source:", list(news_sources.keys()))
     feed_url = news_sources[news_source]
+    text_color = "#ffffff" if dark_mode else "#000000"
 
     if st.button("Reload Feed"):
         feed = feedparser.parse(feed_url)
     else:
         feed = feedparser.parse(feed_url)
+        
 
     show_voting_section = toggle_voting_section()
 
