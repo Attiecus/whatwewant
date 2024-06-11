@@ -104,17 +104,6 @@ def logout():
         cookies["user"] = ""
         cookies.save()
         st.experimental_rerun()
-def track_vote(article_id):
-        if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
-            st.session_state["voted_articles"] = []
-
-        if article_id not in st.session_state["voted_articles"]:
-            st.session_state["voted_articles"].append(article_id)
-            controller.set('voted_articles', json.dumps(st.session_state["voted_articles"]))
-            return True
-        else:
-            st.warning("You have already voted on this article.")
-            return False
 
 
 
@@ -309,7 +298,18 @@ def main():
     else:
         st.write("You are not logged in. Please register anonymously to continue.")
         register_anonymous()
-    
+    def track_vote(article_id):
+        if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
+            st.session_state["voted_articles"] = []
+
+        if article_id not in st.session_state["voted_articles"]:
+            st.session_state["voted_articles"].append(article_id)
+            controller.set('voted_articles', json.dumps(st.session_state["voted_articles"]))
+            return True
+        else:
+            st.warning("You have already voted on this article.")
+            return False
+
 
     @st.cache_resource
     def load_spacy_model():
