@@ -774,7 +774,7 @@ def main():
                         if st.button("Save", key=f"save_button_{idx}"):
                             st.session_state.saved_posts.append({
                                 'title': entry.title,
-                                'summary': entry.summary,
+                                
                                 'link': article_url
                             })
                             st.success(f"Saved {entry.title}")
