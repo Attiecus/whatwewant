@@ -69,10 +69,13 @@ if 'anonymous_id' not in st.session_state:
     get_persistent_anonymous_id()
 
 # Check if user is logged in
+# Check if user is logged in
 def check_login():
     if "user" in st.session_state:
         if "voted_articles" not in st.session_state:
-            voted_articles_cookie = controller.get('voted_articles') or "[]"  # Default to an empty JSON list
+            voted_articles_cookie = controller.get('voted_articles')
+            if voted_articles_cookie is None:
+                voted_articles_cookie = "[]"  # Default to an empty JSON list
             try:
                 st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
                 if not isinstance(st.session_state["voted_articles"], list):
@@ -82,6 +85,7 @@ def check_login():
         return True
     else:
         return False
+
 
 def get_or_create_user_id():
     user_id = controller.get("user_id")
@@ -93,6 +97,7 @@ def get_or_create_user_id():
 # Use the user ID across sessions
 user_id = get_or_create_user_id()
 
+# Register function using Firebase Authentication
 # Register function using Firebase Authentication
 def register_anonymous():
     st.markdown("<h2 style='text-align: center;'>Register as Anonymous</h2>", unsafe_allow_html=True)
@@ -112,7 +117,10 @@ def register_anonymous():
                     st.warning("Anonymous user ID already exists. Logging in with existing ID.")
                     st.session_state["user"] = anonymous_id
                     st.session_state["username"] = controller.get("anonymous_name")
-                    st.session_state["voted_articles"] = json.loads(controller.get("voted_articles", "[]"))
+                    voted_articles_cookie = controller.get('voted_articles')
+                    if voted_articles_cookie is None:
+                        voted_articles_cookie = "[]"  # Default to an empty JSON list
+                    st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
                     controller.set("user", anonymous_id)
                     st.session_state['page'] = "Main"  # Set the page to Main after successful login
                     st.experimental_rerun()
@@ -130,6 +138,7 @@ def register_anonymous():
 
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
+
 
 # Logout function
 def logout():
