@@ -8,7 +8,7 @@ import aiohttp
 import asyncio
 import hashlib
 import time
-from streamlit_cookies_manager import EncryptedCookieManager
+from streamlit_cookies_controller import CookieController
 import json
 import firebase_admin
 from firebase_admin import credentials, auth
@@ -18,10 +18,18 @@ from PIL import Image
 from urllib.parse import urlencode, parse_qs, urlparse
 import random
 import streamlit.components.v1 as components
-from streamlit_cookies_controller import CookieController
 
 # Initialize cookie manager
-st.set_page_config('EKO', '🍪', layout='wide')
+st.set_page_config(layout='wide', page_title='EKO')
+
+# Initialize Firebase
+if not firebase_admin._apps:
+    try:
+        cred = credentials.Certificate("echo-73aeb-firebase-adminsdk-5cxbo-01aa7691b8.json")
+        firebase_admin.initialize_app(cred)
+    except ValueError as e:
+        st.error(f"Firebase initialization error: {e}")
+        st.stop()
 
 # Initialize Cookie Controller
 controller = CookieController()
@@ -40,13 +48,13 @@ def get_anonymous_id():
         controller.set('anonymous_name', random_name)
     return anonymous_id
 
-# Get or set the anonymous ID on initial load
+# Set a persistent cookie for the anonymous ID
 def set_persistent_anonymous_id():
     anonymous_id = get_anonymous_id()
     st.experimental_set_query_params(anonymous_id=anonymous_id)
     st.session_state['anonymous_id'] = anonymous_id
 
-# Retrieve the anonymous ID from query parameters
+# Get the persistent cookie for the anonymous ID
 def get_persistent_anonymous_id():
     query_params = st.experimental_get_query_params()
     anonymous_id = query_params.get('anonymous_id', [None])[0]
@@ -75,23 +83,51 @@ def check_login():
     else:
         return False
 
-# Register function (example)
+def get_or_create_user_id():
+    user_id = controller.get("user_id")
+    if not user_id:
+        user_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
+        controller.set("user_id", user_id)
+    return user_id
+
+# Use the user ID across sessions
+user_id = get_or_create_user_id()
+
+# Register function using Firebase Authentication
 def register_anonymous():
     st.markdown("<h2 style='text-align: center;'>Register as Anonymous</h2>", unsafe_allow_html=True)
     
     try:
         if st.button("Register as Anonymous", key="anonymous_register_button"):
-            anonymous_id = controller.get('anonymous_id')
+            anonymous_id = controller.get("anonymous_id")
             if not anonymous_id:
-                anonymous_id = st.session_state['anonymous_id']
+                anonymous_id = user_id  # Use the consistent user ID
                 random_name = f"User{random.randint(1000, 9999)}"
-                controller.set('anonymous_id', anonymous_id)
-                controller.set('anonymous_name', random_name)
-            st.session_state["user"] = anonymous_id
-            st.session_state["username"] = controller.get('anonymous_name')
-            st.session_state["voted_articles"] = []
-            st.success("Registered anonymously!")
-            st.experimental_rerun()
+                controller.set("anonymous_id", anonymous_id)
+                controller.set("anonymous_name", random_name)
+            try:
+                # Check if the user already exists
+                try:
+                    user = auth.get_user(anonymous_id)
+                    st.warning("Anonymous user ID already exists. Logging in with existing ID.")
+                    st.session_state["user"] = anonymous_id
+                    st.session_state["username"] = controller.get("anonymous_name")
+                    st.session_state["voted_articles"] = json.loads(controller.get("voted_articles", "[]"))
+                    controller.set("user", anonymous_id)
+                    st.session_state['page'] = "Main"  # Set the page to Main after successful login
+                    st.experimental_rerun()
+                except UserNotFoundError:
+                    user = auth.create_user(uid=anonymous_id)
+                    st.session_state["user"] = anonymous_id
+                    st.session_state["username"] = controller.get("anonymous_name")
+                    st.session_state["voted_articles"] = []
+                    st.success("Registered anonymously!")
+                    controller.set("user", anonymous_id)
+                    st.session_state['page'] = "Main"  # Set the page to Main after successful anonymous registration
+                    st.experimental_rerun()
+            except EmailAlreadyExistsError as e:
+                st.error(f"Error: {e}")
+
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
 
@@ -101,11 +137,20 @@ def logout():
         st.session_state.pop("user")
         st.session_state.pop("voted_articles")
         st.session_state.pop("username")
-        cookies["user"] = ""
-        cookies.save()
+        controller.remove("user")
         st.experimental_rerun()
 
+def track_vote(article_id):
+    if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
+        st.session_state["voted_articles"] = []
 
+    if article_id not in st.session_state["voted_articles"]:
+        st.session_state["voted_articles"].append(article_id)
+        controller.set("voted_articles", json.dumps(st.session_state["voted_articles"]))
+        return True
+    else:
+        st.warning("You have already voted on this article.")
+        return False
 
 # Tutorial function
 def tutorial():
@@ -296,20 +341,12 @@ def main():
         st.sidebar.write(f"Welcome, {st.session_state['username']}!")
         logout()
     else:
-        st.write("You are not logged in. Please register anonymously to continue.")
+        if 'page' not in st.session_state:
+            st.session_state['page'] = "Main"
+
+    if st.session_state['page'] == "Register":
         register_anonymous()
-    def track_vote(article_id):
-        if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
-            st.session_state["voted_articles"] = []
-
-        if article_id not in st.session_state["voted_articles"]:
-            st.session_state["voted_articles"].append(article_id)
-            controller.set('voted_articles', json.dumps(st.session_state["voted_articles"]))
-            return True
-        else:
-            st.warning("You have already voted on this article.")
-            return False
-
+        return
 
     @st.cache_resource
     def load_spacy_model():
