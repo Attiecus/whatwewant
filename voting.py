@@ -18,23 +18,13 @@ from PIL import Image
 from urllib.parse import urlencode, parse_qs, urlparse
 import random
 import streamlit.components.v1 as components
+from streamlit_cookies_controller import CookieController
 
 # Initialize cookie manager
-st.set_page_config(layout='wide', page_title='EKO')
+st.set_page_config('EKO', '🍪', layout='wide')
 
-# Check if Firebase app is already initialized
-if not firebase_admin._apps:
-    try:
-        cred = credentials.Certificate("echo-73aeb-firebase-adminsdk-5cxbo-01aa7691b8.json")
-        firebase_admin.initialize_app(cred)
-    except ValueError as e:
-        st.error(f"Firebase initialization error: {e}")
-        st.stop()
-
-# Initialize cookie manager with password
-cookies = EncryptedCookieManager(prefix="echo_app_", password="this_is_a_secret_key")
-if not cookies.ready():
-    st.stop()
+# Initialize Cookie Controller
+controller = CookieController()
 
 # Function to hash passwords (if needed for comparison)
 def hash_password(password):
@@ -42,37 +32,39 @@ def hash_password(password):
 
 # Function to get or create a unique anonymous ID
 def get_anonymous_id():
-    anonymous_id = cookies.get("anonymous_id")
+    anonymous_id = controller.get('anonymous_id')
     if not anonymous_id:
         anonymous_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
         random_name = f"User{random.randint(1000, 9999)}"
-        cookies["anonymous_id"] = anonymous_id
-        cookies["anonymous_name"] = random_name
-        cookies.save()
+        controller.set('anonymous_id', anonymous_id)
+        controller.set('anonymous_name', random_name)
     return anonymous_id
 
-# Set a persistent cookie for the anonymous ID
+# Get or set the anonymous ID on initial load
 def set_persistent_anonymous_id():
     anonymous_id = get_anonymous_id()
     st.experimental_set_query_params(anonymous_id=anonymous_id)
     st.session_state['anonymous_id'] = anonymous_id
 
-# Get the persistent cookie for the anonymous ID
+# Retrieve the anonymous ID from query parameters
 def get_persistent_anonymous_id():
     query_params = st.experimental_get_query_params()
     anonymous_id = query_params.get('anonymous_id', [None])[0]
     if anonymous_id:
         st.session_state['anonymous_id'] = anonymous_id
-        cookies["anonymous_id"] = anonymous_id
-        cookies.save()
+        controller.set('anonymous_id', anonymous_id)
     else:
         set_persistent_anonymous_id()
+
+# Initialize the persistent anonymous ID on app load
+if 'anonymous_id' not in st.session_state:
+    get_persistent_anonymous_id()
 
 # Check if user is logged in
 def check_login():
     if "user" in st.session_state:
         if "voted_articles" not in st.session_state:
-            voted_articles_cookie = cookies.get("voted_articles", "[]")  # Default to an empty JSON list
+            voted_articles_cookie = controller.get('voted_articles') or "[]"  # Default to an empty JSON list
             try:
                 st.session_state["voted_articles"] = json.loads(voted_articles_cookie)
                 if not isinstance(st.session_state["voted_articles"], list):
@@ -83,55 +75,23 @@ def check_login():
     else:
         return False
 
-def get_or_create_user_id():
-    user_id = cookies.get("user_id")
-    if not user_id:
-        user_id = hashlib.sha256(str(time.time()).encode()).hexdigest()
-        cookies["user_id"] = user_id
-        cookies.save()
-    return user_id
-
-# Use the user ID across sessions
-user_id = get_or_create_user_id()
-
-# Register function using Firebase Authentication
+# Register function (example)
 def register_anonymous():
     st.markdown("<h2 style='text-align: center;'>Register as Anonymous</h2>", unsafe_allow_html=True)
     
     try:
         if st.button("Register as Anonymous", key="anonymous_register_button"):
-            anonymous_id = cookies.get("anonymous_id")
+            anonymous_id = controller.get('anonymous_id')
             if not anonymous_id:
-                anonymous_id = user_id  # Use the consistent user ID
+                anonymous_id = st.session_state['anonymous_id']
                 random_name = f"User{random.randint(1000, 9999)}"
-                cookies["anonymous_id"] = anonymous_id
-                cookies["anonymous_name"] = random_name
-                cookies.save()
-            try:
-                # Check if the user already exists
-                try:
-                    user = auth.get_user(anonymous_id)
-                    st.warning("Anonymous user ID already exists. Logging in with existing ID.")
-                    st.session_state["user"] = anonymous_id
-                    st.session_state["username"] = cookies.get("anonymous_name")
-                    st.session_state["voted_articles"] = json.loads(cookies.get("voted_articles", "[]"))
-                    cookies["user"] = anonymous_id
-                    cookies.save()
-                    st.session_state['page'] = "Main"  # Set the page to Main after successful login
-                    st.experimental_rerun()
-                except UserNotFoundError:
-                    user = auth.create_user(uid=anonymous_id)
-                    st.session_state["user"] = anonymous_id
-                    st.session_state["username"] = cookies.get("anonymous_name")
-                    st.session_state["voted_articles"] = []
-                    st.success("Registered anonymously!")
-                    cookies["user"] = anonymous_id
-                    cookies.save()
-                    st.session_state['page'] = "Main"  # Set the page to Main after successful anonymous registration
-                    st.experimental_rerun()
-            except EmailAlreadyExistsError as e:
-                st.error(f"Error: {e}")
-
+                controller.set('anonymous_id', anonymous_id)
+                controller.set('anonymous_name', random_name)
+            st.session_state["user"] = anonymous_id
+            st.session_state["username"] = controller.get('anonymous_name')
+            st.session_state["voted_articles"] = []
+            st.success("Registered anonymously!")
+            st.experimental_rerun()
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
 
