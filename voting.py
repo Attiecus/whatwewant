@@ -662,7 +662,7 @@ background: radial-gradient(circle, rgba(34,193,195,1) 0%, rgba(233,194,111,1) 1
      
         
     st.image("logo.png", use_column_width=True, width=500, output_format="PNG", caption="")
-    st.header(" Trending news")
+    st.header("  Trending news")
 
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
