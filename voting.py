@@ -104,8 +104,7 @@ def logout():
         cookies["user"] = ""
         cookies.save()
         st.experimental_rerun()
-
- def track_vote(article_id):
+def track_vote(article_id):
         if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
             st.session_state["voted_articles"] = []
 
@@ -116,6 +115,8 @@ def logout():
         else:
             st.warning("You have already voted on this article.")
             return False
+
+
 
 # Tutorial function
 def tutorial():
