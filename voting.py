@@ -105,18 +105,17 @@ def logout():
         cookies.save()
         st.experimental_rerun()
 
-def track_vote(article_id):
-    if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
-        st.session_state["voted_articles"] = []
+ def track_vote(article_id):
+        if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
+            st.session_state["voted_articles"] = []
 
-    if article_id not in st.session_state["voted_articles"]:
-        st.session_state["voted_articles"].append(article_id)
-        cookies["voted_articles"] = json.dumps(st.session_state["voted_articles"])
-        cookies.save()
-        return True
-    else:
-        st.warning("You have already voted on this article.")
-        return False
+        if article_id not in st.session_state["voted_articles"]:
+            st.session_state["voted_articles"].append(article_id)
+            controller.set('voted_articles', json.dumps(st.session_state["voted_articles"]))
+            return True
+        else:
+            st.warning("You have already voted on this article.")
+            return False
 
 # Tutorial function
 def tutorial():
