@@ -526,7 +526,8 @@ def main():
                 color: #1E90FF !important;
             }
             .stButton button {
-                background-color: #444444 !important;
+                background: rgb(249,249,249);
+background: linear-gradient(270deg, rgba(249,249,249,1) 0%, rgba(1,5,29,1) 0%, rgba(255,0,104,1) 83%);
                 color: #ffffff !important;
             }
             .stTextInput input {
@@ -544,7 +545,8 @@ def main():
                 box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
                 transition: transform 0.3s ease-in-out;
                 position: relative;
-                background-color: #333333;
+                background: rgb(249,249,249);
+background: linear-gradient(180deg, rgba(249,249,249,1) 0%, rgba(26,1,29,1) 51%, rgba(0,224,255,1) 100%);
             }
             .card:hover {
                 transform: scale(1.05);
@@ -774,7 +776,7 @@ def main():
                         if st.button("Save", key=f"save_button_{idx}"):
                             st.session_state.saved_posts.append({
                                 'title': entry.title,
-                                
+                                #'summary': entry.summary,
                                 'link': article_url
                             })
                             st.success(f"Saved {entry.title}")
