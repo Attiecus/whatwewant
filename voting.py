@@ -720,7 +720,7 @@ def main():
                     st.session_state.saved_posts = [p for p in saved_posts if p['link'] != post['link']]
                     st.experimental_rerun()
                 st.markdown(f"### [{post['title']}]({post['link']})")
-                st.markdown(f"{post['summary']}")
+                #st.markdown(f"{post['summary']}")
         else:
             st.write("No articles saved.")
 
