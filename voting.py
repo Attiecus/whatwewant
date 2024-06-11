@@ -592,7 +592,7 @@ def main():
     "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
     "ESPN": "https://www.espn.com/espn/rss/news",
     "Business Insider": "https://www.businessinsider.com/rss",
-    "Bloomberg": "https://www.bloomberg.com/feed/podcast"
+    "Bloomberg": "https://www.bloomberg.com/rss"
 }
 
     news_source = st.selectbox("Select news source:", list(news_sources.keys()))
