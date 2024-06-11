@@ -728,7 +728,7 @@ background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%)
                         post_id = hashlib.md5(article_url.encode()).hexdigest()  # Generate unique post ID
 
                         card_color = "#444444" if dark_mode else "#f9f9f9"
-                        text_color = "#ffffff" if dark_mode else "#000000"
+                        text_color = "#000000" if dark_mode else "#000000"
                         three_dots_color = "#ffffff" if dark_mode else "#000000"
 
                         card_html = f"""
