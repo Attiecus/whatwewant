@@ -65,6 +65,7 @@ def check_login():
         return True
     else:
         return False
+
 def get_or_create_user_id():
     user_id = cookies.get("user_id")
     if not user_id:
@@ -75,6 +76,7 @@ def get_or_create_user_id():
 
 # Use the user ID across sessions
 user_id = get_or_create_user_id()
+
 # Register function using Firebase Authentication
 def register_anonymous():
     st.markdown("<h2 style='text-align: center;'>Register as Anonymous</h2>", unsafe_allow_html=True)
@@ -115,6 +117,7 @@ def register_anonymous():
 
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
+
 
 # Logout function
 def logout():
