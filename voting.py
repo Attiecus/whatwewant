@@ -340,18 +340,7 @@ def create_social_media_share_button(article_title, post_id):
     </style>
     """
 
-    components.html(f"""
-    {buttons_html}
-    <script>
-        function copyToClipboard(text) {{
-            navigator.clipboard.writeText(text).then(function() {{
-                alert('Copied to clipboard');
-            }}, function(err) {{
-                console.error('Could not copy text: ', err);
-            }});
-        }}
-    </script>
-    """, height=200)
+
 
 def create_poll_with_options(article_id, options):
     vote_key = f"votes_{article_id}"
@@ -592,15 +581,7 @@ background: radial-gradient(circle, rgba(34,193,195,1) 0%, rgba(233,194,111,1) 1
                 display: block;
             }
         </style>
-        <script>
-            function copyToClipboard(text) {
-                navigator.clipboard.writeText(text).then(function() {
-                    alert('Copied to clipboard');
-                }, function(err) {
-                    console.error('Could not copy text: ', err);
-                });
-            }
-        </script>
+        
         """
         st.markdown(css, unsafe_allow_html=True)
 
@@ -866,15 +847,7 @@ st.markdown("""
         display: block;
     }
 </style>
-<script>
-    function copyToClipboard(text) {{
-        navigator.clipboard.writeText(text).then(function() {{
-            alert('Copied to clipboard');
-        }}, function(err) {{
-            console.error('Could not copy text: ', err);
-        }});
-    }}
-</script>
+
 """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
