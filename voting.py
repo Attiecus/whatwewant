@@ -516,13 +516,13 @@ background: linear-gradient(180deg, rgba(1,2,14,1) 84%, rgba(41,232,188,1) 100%)
                 color: #1E90FF !important;
             }
             .stButton button {
-                background: rgb(1,20,29);
-background: linear-gradient(275deg, rgba(1,20,29,1) 41%, rgba(209,0,255,1) 98%);
+                background: rgb(1,2,14);
+background: radial-gradient(circle, rgba(1,2,14,1) 55%, rgba(149,54,115,1) 100%);
                 color: #ffffff !important;
             }
             .stTextInput input {
                 background-color: #444444 !important;
-                color: #ffffff !important;
+                color: #f7f7f7 !important;
             }
             .three-dots {
                 color: #ffffff !important;
