@@ -516,8 +516,8 @@ background: linear-gradient(180deg, rgba(1,2,14,1) 84%, rgba(41,232,188,1) 100%)
                 color: #1E90FF !important;
             }
             .stButton button {
-                background: rgb(1,2,14);
-background: radial-gradient(circle, rgba(1,2,14,1) 55%, rgba(149,54,115,1) 100%);
+                background: rgb(14,1,1);
+background: linear-gradient(0deg, rgba(14,1,1,1) 0%, rgba(201,45,106,1) 0%);
                 color: #ffffff !important;
             }
             .stTextInput input {
