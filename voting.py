@@ -307,12 +307,9 @@ def main():
         st.sidebar.write(f"Welcome, {st.session_state['username']}!")
         logout()
     else:
-        if 'page' not in st.session_state:
-            st.session_state['page'] = "Main"
-
-    if st.session_state['page'] == "Register":
+        st.write("You are not logged in. Please register anonymously to continue.")
         register_anonymous()
-        return
+    
 
     @st.cache_resource
     def load_spacy_model():
