@@ -27,6 +27,23 @@ st.markdown("""
 body {
     transition: all 0.5s ease-in-out;
 }
+body::-webkit-scrollbar {
+    width: 12px;               /* Width of the entire scrollbar */
+}
+
+body::-webkit-scrollbar-track {
+    background: #f1f1f1;        /* Color of the track */
+}
+
+body::-webkit-scrollbar-thumb {
+    background-color: #888;    /* Color of the thumb */
+    border-radius: 20px;       /* Roundness of the thumb */
+    border: 3px solid #f1f1f1; /* Padding around thumb */
+}
+
+body::-webkit-scrollbar-thumb:hover {
+    background-color: #555;    /* Color of the thumb on hover */
+}
 </style>
 """, unsafe_allow_html=True)
 # Initialize Firebase
