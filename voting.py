@@ -586,13 +586,14 @@ def main():
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
     news_sources = {
-        "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
-        "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
-        "RTE": "https://www.rte.ie/rss/news.xml",
-        "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
-        "Sky Sports":  "https://www.skysports.com/rss/12040/news",  # Sky Sports RSS feed
-        "Business Insider": "https://www.businessinsider.com/rss"  # Business Insider RSS feed
-    }
+    "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+    "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
+    "RTE": "https://www.rte.ie/rss/news.xml",
+    "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+    "ESPN": "https://www.espn.com/espn/rss/news",
+    "Business Insider": "https://www.businessinsider.com/rss",
+    "Bloomberg": "https://www.bloomberg.com/feed/podcast"
+}
 
     news_source = st.selectbox("Select news source:", list(news_sources.keys()))
     feed_url = news_sources[news_source]
