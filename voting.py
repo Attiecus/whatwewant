@@ -51,6 +51,23 @@ def get_anonymous_id():
         cookies.save()
     return anonymous_id
 
+# Set a persistent cookie for the anonymous ID
+def set_persistent_anonymous_id():
+    anonymous_id = get_anonymous_id()
+    st.experimental_set_query_params(anonymous_id=anonymous_id)
+    st.session_state['anonymous_id'] = anonymous_id
+
+# Get the persistent cookie for the anonymous ID
+def get_persistent_anonymous_id():
+    query_params = st.experimental_get_query_params()
+    anonymous_id = query_params.get('anonymous_id', [None])[0]
+    if anonymous_id:
+        st.session_state['anonymous_id'] = anonymous_id
+        cookies["anonymous_id"] = anonymous_id
+        cookies.save()
+    else:
+        set_persistent_anonymous_id()
+
 # Check if user is logged in
 def check_login():
     if "user" in st.session_state:
@@ -117,7 +134,6 @@ def register_anonymous():
 
     except st.errors.DuplicateWidgetID:
         st.warning("Please click the register button again to confirm.")
-
 
 # Logout function
 def logout():
