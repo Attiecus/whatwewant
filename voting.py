@@ -189,6 +189,19 @@ def logout():
         st.session_state.pop("username")
         controller.remove("user")
         st.experimental_rerun()
+with st.sidebar:
+    st.markdown("## Support EKO")
+    st.write("If you enjoy using EKO, please consider supporting us by making a donation.")
+
+    donation_html = """
+        <form action="https://www.paypal.com/donate" method="post" target="_top">
+            <input type="hidden" name="hosted_button_id" value="YOUR_PAYPAL_BUTTON_ID" />
+            <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
+            <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" />
+        </form>
+        """
+    st.markdown(donation_html, unsafe_allow_html=True)
+
 
 def track_vote(article_id):
     if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
@@ -540,8 +553,8 @@ def main():
                 color: #ffffff !important;
             }
             .stApp {
-               background: rgb(10,226,214);
-background: linear-gradient(0deg, rgba(10,226,214,1) 0%, rgba(0,0,0,1) 8%);
+               background: rgb(155,32,203);
+background: linear-gradient(0deg, rgba(155,32,203,1) 0%, rgba(14,1,1,1) 21%);
                 color: #ffffff !important;
             }
             .stSidebar {
@@ -571,8 +584,8 @@ background: linear-gradient(0deg, rgba(14,1,1,1) 0%, rgba(201,45,106,1) 0%);
                 box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
                 transition: transform 0.3s ease-in-out;
                 position: relative;
-                background: rgb(1,25,29);
-background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%);
+                background: rgb(155,32,203);
+background: linear-gradient(0deg, rgba(155,32,203,1) 0%, rgba(14,1,1,1) 52%);
             }
             .card:hover {
                 transform: scale(1.05);
