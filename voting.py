@@ -529,7 +529,7 @@ def main():
             }
             .stApp {
                background: rgb(155,32,203);
-background: linear-gradient(0deg, rgba(155,32,203,1) 0%, rgba(14,1,1,1) 21%);
+background: linear-gradient(0deg, rgba(155,32,203,1) 0%, rgba(14,1,1,1) 8%);
                 color: #ffffff !important;
             }
             .stSidebar {
