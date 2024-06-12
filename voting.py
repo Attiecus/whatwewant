@@ -18,49 +18,51 @@ from PIL import Image
 from urllib.parse import urlencode, parse_qs, urlparse
 import random
 import streamlit.components.v1 as components
+from colorthief import ColorThief
+from io import BytesIO
 
 # Initialize cookie manager
 
 st.set_page_config(layout='wide', page_title='EKO')
-st.markdown("""
-<style>
-body {
-    transition: all 0.5s ease-in-out;
-    background: linear-gradient(45deg, #1e3c72, #2a5298);
-    background-size: 400% 400%;
-    animation: gradientBG 15s ease infinite;
-}
-body::-webkit-scrollbar {
-    width: 12px;               /* Width of the entire scrollbar */
-}
 
-body::-webkit-scrollbar-track {
-    background: #f1f1f1;        /* Color of the track */
-}
+def get_dominant_colors(image_url, num_colors=3):
+    response = requests.get(image_url)
+    img = Image.open(BytesIO(response.content))
+    
+    # Convert the image to RGB if it has an alpha channel
+    if img.mode == 'RGBA':
+        img = img.convert('RGB')
+    
+    img.save("temp_image.jpg")
+    
+    color_thief = ColorThief("temp_image.jpg")
+    dominant_colors = color_thief.get_palette(color_count=num_colors)
+    
+    return dominant_colors
 
-body::-webkit-scrollbar-thumb {
-    background-color: #888;    /* Color of the thumb */
-    border-radius: 20px;       /* Roundness of the thumb */
-    border: 3px solid #f1f1f1; /* Padding around thumb */
-}
+def rgb_to_hex(rgb):
+    return '#%02x%02x%02x' % rgb
 
-body::-webkit-scrollbar-thumb:hover {
-    background-color: #555;    /* Color of the thumb on hover */
-}
+def create_css_gradient(colors):
+    hex_colors = [rgb_to_hex(color) for color in colors]
+    gradient = f"linear-gradient(135deg, {', '.join(hex_colors)})"
+    return gradient
 
-@keyframes gradientBG {
-    0% {
-        background-position: 0% 50%;
-    }
-    50% {
-        background-position: 100% 50%;
-    }
-    100% {
-        background-position: 0% 50%;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
+def apply_dynamic_background(image_url, element_id):
+    dominant_colors = get_dominant_colors(image_url)
+    css_gradient = create_css_gradient(dominant_colors)
+    st.markdown(f"""
+        <style>
+        #{element_id}:hover {{
+            background: {css_gradient} !important;
+        }}
+        #{element_id}:hover .stApp {{
+            background: {css_gradient} !important;
+        }}
+        </style>
+        """, unsafe_allow_html=True)
+
+
 # Initialize Firebase
 if not firebase_admin._apps:
     try:
@@ -189,31 +191,6 @@ def logout():
         st.session_state.pop("username")
         controller.remove("user")
         st.experimental_rerun()
-with st.sidebar:
-    st.markdown("## Support EKO")
-    st.write("If you enjoy using EKO, please consider supporting us by making a donation.")
-
-    donation_html = """
-        <form action="https://www.paypal.com/donate" method="post" target="_top">
-            <input type="hidden" name="hosted_button_id" value="YOUR_PAYPAL_BUTTON_ID" />
-            <input type="image" src="https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif" border="0" name="submit" title="PayPal - The safer, easier way to pay online!" alt="Donate with PayPal button" />
-            <img alt="" border="0" src="https://www.paypal.com/en_US/i/scr/pixel.gif" width="1" height="1" />
-        </form>
-        """
-    st.markdown(donation_html, unsafe_allow_html=True)
-
-
-def track_vote(article_id):
-    if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
-        st.session_state["voted_articles"] = []
-
-    if article_id not in st.session_state["voted_articles"]:
-        st.session_state["voted_articles"].append(article_id)
-        controller.set("voted_articles", json.dumps(st.session_state["voted_articles"]))
-        return True
-    else:
-        st.warning("You have already voted on this article.")
-        return False
 
 # Main function to demonstrate cookies and user session handling
 def main():
@@ -246,7 +223,7 @@ def main():
         register_anonymous()
     
     # Example of using cookies to track votes
-    def track_vote(article_id):
+def track_vote(article_id):
         if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
             st.session_state["voted_articles"] = []
 
@@ -384,8 +361,6 @@ def create_social_media_share_button(article_title, post_id):
         }}
     </style>
     """
-
-
 
 def create_poll_with_options(article_id, options):
     vote_key = f"votes_{article_id}"
@@ -779,12 +754,14 @@ background: linear-gradient(0deg, rgba(155,32,203,1) 0%, rgba(14,1,1,1) 52%);
                         three_dots_color = "#ffffff" if dark_mode else "#ffffff"
 
                         card_html = f"""
-                        <div class="card" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
+                        <div class="card" id="card_{idx}" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
                             <h3><a href="{entry.link}" style="color: {text_color}; text-decoration: none;">{entry.title}</a></h3>
                             <p style="color: {text_color};">{entry.summary}</p>
                         """
                         if image:
                             card_html += f'<img src="{image}" alt="Article Image" style="width:100%; border-radius: 10px; margin-bottom: 10px;"/>'
+                            # Apply dynamic background on hover
+                            apply_dynamic_background(image, f"card_{idx}")
 
                         card_html += f"""
                             <div class="button-container">
