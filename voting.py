@@ -456,6 +456,10 @@ def main():
         async with aiohttp.ClientSession() as session:
             tasks = [fetch_article_content_async(session, url) for url in urls]
             return await asyncio.gather(*tasks)
+    def reload_feed_callback():
+        global feeds
+        feeds = [feedparser.parse(url) for url in feed_urls]
+        st.session_state['feeds'] = feeds
 
     OPENCAGE_API_KEY = 'dcbeeba6d26b4628bef1806606c11c21'  # Replace with your OpenCage API key
     geocoder = OpenCageGeocode(OPENCAGE_API_KEY)
@@ -699,31 +703,30 @@ background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%)
     user_query = st.text_input("Search for articles containing:", key="article_search")
 
     news_sources = {
-    "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
-    "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
-    "RTE": "https://www.rte.ie/rss/news.xml",
-    "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
-    "ESPN": "https://www.espn.com/espn/rss/news",
-    "Business Insider": "https://www.businessinsider.com/rss",
-    "The Guardian": "https://www.theguardian.com/world/rss"
-}
-    news_source = st.selectbox("Select news source:", list(news_sources.keys()))
-    feed_url = news_sources[news_source]
-    text_color = "#ffffff" 
-
+        "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+        "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
+        "RTE": "https://www.rte.ie/rss/news.xml",
+        "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+        "ESPN": "https://www.espn.com/espn/rss/news",
+        "Business Insider": "https://www.businessinsider.com/rss",
+        "The Guardian": "https://www.theguardian.com/world/rss"
+    }
+    
+    selected_sources = st.multiselect("Select news source:", list(news_sources.keys()), default=["Sky News"])
+    feed_urls = [news_sources[source] for source in selected_sources]
+    
     if st.button("Reload Feed"):
-        feed = feedparser.parse(feed_url)
+        feeds = [feedparser.parse(url) for url in feed_urls]
     else:
-        feed = feedparser.parse(feed_url)
+        feeds = [feedparser.parse(url) for url in feed_urls]
         
-
     show_voting_section = toggle_voting_section()
 
     with st.sidebar:
         st.header("Saved Articles")
         st.write("*Warning: Your saved articles are only for this session and will be deleted once the session is over! To ensure you have your articles saved, please sign up or log in.")
         st.sidebar.header("About us:")
-        tut_button=st.sidebar.button("Read here")
+        tut_button = st.sidebar.button("Read here")
         if tut_button:
             tutorial()
 
@@ -736,13 +739,12 @@ background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%)
                     st.session_state.saved_posts = [p for p in saved_posts if p['link'] != post['link']]
                     st.experimental_rerun()
                 st.markdown(f"### [{post['title']}]({post['link']})")
-                #st.markdown(f"{post['summary']}")
         else:
             st.write("No articles saved.")
 
     if show_voting_section:
         # Filter articles by date (past 2 days)
-        filtered_entries = filter_articles_by_date(feed, days=2)
+        filtered_entries = [entry for feed in feeds for entry in filter_articles_by_date(feed, days=2)]
         # Further filter articles based on user query
         filtered_entries = search_articles(filtered_entries, user_query)
         if filtered_entries:
@@ -760,7 +762,7 @@ background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%)
                         post_id = hashlib.md5(article_url.encode()).hexdigest()  # Generate unique post ID
 
                         card_color = "#444444" if dark_mode else "#f9f9f9"
-                        text_color = "#ffffff" if dark_mode else "#ffffff"
+                        text_color = "#ffffff" if dark_mode else "#000000"
                         three_dots_color = "#ffffff" if dark_mode else "#000000"
 
                         card_html = f"""
@@ -790,7 +792,6 @@ background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%)
                         if st.button("Save", key=f"save_button_{idx}"):
                             st.session_state.saved_posts.append({
                                 'title': entry.title,
-                                #'summary': entry.summary,
                                 'link': article_url
                             })
                             st.success(f"Saved {entry.title}")
@@ -814,7 +815,7 @@ background: linear-gradient(180deg, rgba(1,25,29,1) 51%, rgba(0,255,231,1) 100%)
                                 else:
                                     st.warning("Please register anonymously to have your say")
                                     if st.button("Register as Anonymous", key=f"register_anonymous_{idx}"):
-                                        st.write("*Dont worry all users will remain anonymous,your data is yours")
+                                        st.write("*Don't worry all users will remain anonymous, your data is yours")
                                         st.session_state['page'] = "Register"
                                         st.experimental_rerun()
                             else:
