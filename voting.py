@@ -688,8 +688,6 @@ background: linear-gradient(0deg, rgba(155,32,203,1) 0%, rgba(14,1,1,1) 52%);
     st.image("logo.png", use_column_width=True, width=500, output_format="PNG", caption="")
     st.header("HAVE YOUR SAY")
 
-    user_query = st.text_input("Search for articles containing:", key="article_search")
-
     news_sources = {
         "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
         "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
@@ -733,8 +731,16 @@ background: linear-gradient(0deg, rgba(155,32,203,1) 0%, rgba(14,1,1,1) 52%);
     if show_voting_section:
         # Filter articles by date (past 2 days)
         filtered_entries = [entry for feed in feeds for entry in filter_articles_by_date(feed, days=2)]
-        # Further filter articles based on user query
-        filtered_entries = search_articles(filtered_entries, user_query)
+        
+        # Extract hashtags from articles
+        hashtags = set()
+        for entry in filtered_entries:
+            hashtags.update(extract_relevant_entities(entry.summary))
+        
+        selected_hashtags = st.multiselect("Select hashtags to search articles:", sorted(hashtags))
+
+        filtered_entries = [entry for entry in filtered_entries if any(hashtag in entry.summary for hashtag in selected_hashtags)]
+        
         if filtered_entries:
             num_cols = min(len(filtered_entries), 3)
             cols = st.columns(num_cols)
@@ -750,8 +756,8 @@ background: linear-gradient(0deg, rgba(155,32,203,1) 0%, rgba(14,1,1,1) 52%);
                         post_id = hashlib.md5(article_url.encode()).hexdigest()  # Generate unique post ID
 
                         card_color = "#444444" if dark_mode else "#f9f9f9"
-                        text_color = "#ffffff" if dark_mode else "#ffffff"
-                        three_dots_color = "#ffffff" if dark_mode else "#ffffff"
+                        text_color = "#ffffff" if dark_mode else "#000000"
+                        three_dots_color = "#ffffff" if dark_mode else "#000000"
 
                         card_html = f"""
                         <div class="card" id="card_{idx}" style="background-color: {card_color}; padding: 20px; border-radius: 10px; margin-bottom: 20px;">
