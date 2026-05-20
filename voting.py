@@ -1,7 +1,6 @@
 import streamlit as st
 import requests
 import spacy
-from opencage.geocoder import OpenCageGeocode
 from bs4 import BeautifulSoup
 import feedparser
 import aiohttp
@@ -12,82 +11,136 @@ from streamlit_cookies_controller import CookieController
 import json
 from datetime import datetime, timedelta
 from PIL import Image
-from urllib.parse import urlencode
 import random
-import streamlit.components.v1 as components
 from colorthief import ColorThief
 from io import BytesIO
+import sqlite3
+import html
+from urllib.parse import quote
 
 
-st.set_page_config(layout='wide', page_title='EKO', page_icon='🗣️')
+# ─────────────────────────────────────────────────────────────────
+# Page config
+# ─────────────────────────────────────────────────────────────────
+st.set_page_config(layout="wide", page_title="EKO", page_icon="🗣️")
 
 
-# ── Cookie controller ─────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# Cookie controller
+# ─────────────────────────────────────────────────────────────────
 controller = CookieController()
 
 
-# ── Image helpers ─────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# SQLite database
+# ─────────────────────────────────────────────────────────────────
+DB_PATH = "eko_votes.db"
+
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS article_votes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id TEXT NOT NULL,
+            article_url TEXT NOT NULL,
+            article_title TEXT,
+            option_text TEXT NOT NULL,
+            vote_count INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(article_id, option_text)
+        )
+    """)
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS user_votes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            article_id TEXT NOT NULL,
+            user_fingerprint TEXT NOT NULL,
+            option_text TEXT NOT NULL,
+            voted_at TEXT NOT NULL,
+            UNIQUE(article_id, user_fingerprint)
+        )
+    """)
+
+    conn.commit()
+    conn.close()
+
+
+init_db()
+
+
+# ─────────────────────────────────────────────────────────────────
+# Image helpers
+# ─────────────────────────────────────────────────────────────────
 def extract_image_from_entry(entry):
     """
     Try every standard RSS/Atom image field before falling back to page scraping.
-    Sky News uses media:thumbnail → feedparser maps this to entry.media_thumbnail.
     """
-    # 1. media:thumbnail
-    mt = getattr(entry, 'media_thumbnail', None)
-    if mt and isinstance(mt, list) and mt[0].get('url'):
-        return mt[0]['url']
+    mt = getattr(entry, "media_thumbnail", None)
+    if mt and isinstance(mt, list) and mt[0].get("url"):
+        return mt[0]["url"]
 
-    # 2. media:content with image type
-    mc = getattr(entry, 'media_content', None)
+    mc = getattr(entry, "media_content", None)
     if mc and isinstance(mc, list):
         for m in mc:
-            t = m.get('type', '') or m.get('medium', '')
-            if 'image' in t or m.get('url', '').endswith(('.jpg', '.jpeg', '.png', '.webp')):
-                return m.get('url')
+            t = m.get("type", "") or m.get("medium", "")
+            url = m.get("url", "")
+            if "image" in t or url.endswith((".jpg", ".jpeg", ".png", ".webp")):
+                return url
 
-    # 3. enclosures
-    enc = getattr(entry, 'enclosures', None)
+    enc = getattr(entry, "enclosures", None)
     if enc:
         for e in enc:
-            if 'image' in e.get('type', ''):
-                return e.get('href') or e.get('url')
+            if "image" in e.get("type", ""):
+                return e.get("href") or e.get("url")
 
-    # 4. og:image in summary html
-    summary = entry.get('summary', '') or entry.get('description', '')
-    if '<img' in summary:
-        soup = BeautifulSoup(summary, 'html.parser')
-        img = soup.find('img')
-        if img and img.get('src'):
-            return img['src']
+    summary = entry.get("summary", "") or entry.get("description", "")
+    if "<img" in summary:
+        soup = BeautifulSoup(summary, "html.parser")
+        img = soup.find("img")
+        if img and img.get("src"):
+            return img["src"]
 
-    # 5. content:encoded
-    for c in entry.get('content', []):
-        if '<img' in c.get('value', ''):
-            soup = BeautifulSoup(c['value'], 'html.parser')
-            img = soup.find('img')
-            if img and img.get('src'):
-                return img['src']
+    for c in entry.get("content", []):
+        if "<img" in c.get("value", ""):
+            soup = BeautifulSoup(c["value"], "html.parser")
+            img = soup.find("img")
+            if img and img.get("src"):
+                return img["src"]
 
     return None
 
 
 @st.cache_data(ttl=300, show_spinner=False)
 def scrape_article_image(url: str) -> str | None:
-    """Last resort: scrape the article page for og:image. Cached 5 min."""
+    """Last resort: scrape the article page for og:image. Cached for 5 minutes."""
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                          'AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/120.0.0.0 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9',
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
+            "Accept-Language": "en-US,en;q=0.9",
         }
         r = requests.get(url, headers=headers, timeout=5)
-        soup = BeautifulSoup(r.content, 'lxml')
-        og = soup.find('meta', property='og:image')
-        if og and og.get('content'):
-            return og['content']
-        img = soup.find('img', src=True)
-        return img['src'] if img else None
+        soup = BeautifulSoup(r.content, "lxml")
+
+        og = soup.find("meta", property="og:image")
+        if og and og.get("content"):
+            return og["content"]
+
+        img = soup.find("img", src=True)
+        return img["src"] if img else None
+
     except Exception:
         return None
 
@@ -95,7 +148,7 @@ def scrape_article_image(url: str) -> str | None:
 def get_dominant_colors(image_url, num_colors=3):
     try:
         r = requests.get(image_url, timeout=5)
-        img = Image.open(BytesIO(r.content)).convert('RGB')
+        img = Image.open(BytesIO(r.content)).convert("RGB")
         img.save("temp_image.jpg")
         ct = ColorThief("temp_image.jpg")
         return ct.get_palette(color_count=num_colors)
@@ -104,22 +157,24 @@ def get_dominant_colors(image_url, num_colors=3):
 
 
 def rgb_to_hex(rgb):
-    return '#%02x%02x%02x' % rgb
+    return "#%02x%02x%02x" % rgb
 
 
 def create_css_gradient(colors):
     return f"linear-gradient(135deg, {', '.join(rgb_to_hex(c) for c in colors)})"
 
 
-# ── Auth helpers: Firebase-free version ───────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# Anonymous identity helpers: Firebase-free
+# ─────────────────────────────────────────────────────────────────
 def get_client_ip():
     """
     Best-effort client IP capture.
 
-    Note:
-    - On local machine, this may return unknown_ip.
+    Notes:
+    - On local machine, this may return 'unknown_ip'.
     - On hosted apps, IP may come through reverse proxy headers.
-    - IP alone is not a perfect identity, so we combine it with a browser cookie.
+    - IP alone is not a perfect identity, so this app combines it with a browser cookie.
     """
     try:
         headers = st.context.headers
@@ -142,17 +197,10 @@ def get_client_ip():
     return "unknown_ip"
 
 
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-
 def get_or_create_user_id():
     """
-    Creates a stable anonymous user ID using:
-    1. Browser cookie
-    2. Client IP as additional soft identity input
-
-    This avoids Firebase completely.
+    Creates a stable anonymous browser ID using a cookie.
+    The IP is stored only as a supporting signal.
     """
     uid = controller.get("user_id")
 
@@ -160,6 +208,7 @@ def get_or_create_user_id():
         client_ip = get_client_ip()
         raw_id = f"{client_ip}_{time.time()}_{random.randint(1000, 9999)}"
         uid = hashlib.sha256(raw_id.encode()).hexdigest()
+
         controller.set("user_id", uid)
         controller.set("user_ip", client_ip)
 
@@ -169,12 +218,28 @@ def get_or_create_user_id():
 user_id = get_or_create_user_id()
 
 
+def get_user_fingerprint():
+    """
+    Creates a hashed fingerprint to prevent duplicate voting.
+
+    It uses:
+    - anonymous cookie ID
+    - best-effort IP address
+
+    Raw IP is not stored directly in the voting table.
+    """
+    anon_id = controller.get("anonymous_id") or controller.get("user_id") or user_id
+    client_ip = get_client_ip()
+    raw = f"{anon_id}_{client_ip}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
 def check_login():
     if "user" not in st.session_state:
         return False
 
     if "voted_articles" not in st.session_state:
-        raw = controller.get('voted_articles') or "[]"
+        raw = controller.get("voted_articles") or "[]"
 
         if not isinstance(raw, str):
             raw = json.dumps(raw)
@@ -187,27 +252,10 @@ def check_login():
     return True
 
 
-def track_vote(article_id):
-    """
-    Prevents repeat voting from the same browser cookie.
-    This is not a server-side database lock, but works for a simple prototype.
-    """
-    if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
-        st.session_state["voted_articles"] = []
-
-    if article_id not in st.session_state["voted_articles"]:
-        st.session_state["voted_articles"].append(article_id)
-        controller.set("voted_articles", json.dumps(st.session_state["voted_articles"]))
-        return True
-
-    st.warning("You've already voted on this article.")
-    return False
-
-
 def register_anonymous():
     """
     Anonymous registration without Firebase.
-    Uses cookies and a best-effort IP capture.
+    Uses browser cookies and best-effort IP capture.
     """
     st.markdown("<h2 style='text-align:center;'>Register anonymously</h2>", unsafe_allow_html=True)
     st.write("No email needed — your identity stays protected.")
@@ -239,7 +287,7 @@ def register_anonymous():
             "page": "Main",
         })
 
-        st.success("Registered anonymously!")
+        st.success("Registered anonymously.")
         st.rerun()
 
 
@@ -252,7 +300,103 @@ def logout():
         st.rerun()
 
 
-# ── Feed helpers ──────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# Voting database functions
+# ─────────────────────────────────────────────────────────────────
+def has_user_voted(article_id):
+    user_fingerprint = get_user_fingerprint()
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT option_text
+        FROM user_votes
+        WHERE article_id = ?
+        AND user_fingerprint = ?
+    """, (article_id, user_fingerprint))
+
+    row = cur.fetchone()
+    conn.close()
+
+    return row["option_text"] if row else None
+
+
+def record_vote(article_id, article_url, article_title, option_text):
+    """
+    Records one vote if the user has not already voted on the article.
+
+    Returns True if vote was recorded.
+    Returns False if user already voted.
+    """
+    user_fingerprint = get_user_fingerprint()
+    now = datetime.now().isoformat()
+
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    try:
+        # This insert enforces one vote per user per article.
+        cur.execute("""
+            INSERT INTO user_votes (
+                article_id,
+                user_fingerprint,
+                option_text,
+                voted_at
+            )
+            VALUES (?, ?, ?, ?)
+        """, (article_id, user_fingerprint, option_text, now))
+
+        # This upsert increments the public total count for the selected option.
+        cur.execute("""
+            INSERT INTO article_votes (
+                article_id,
+                article_url,
+                article_title,
+                option_text,
+                vote_count
+            )
+            VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT(article_id, option_text)
+            DO UPDATE SET vote_count = vote_count + 1
+        """, (article_id, article_url, article_title, option_text))
+
+        conn.commit()
+        return True
+
+    except sqlite3.IntegrityError:
+        return False
+
+    finally:
+        conn.close()
+
+
+def get_vote_results(article_id, options=None):
+    conn = get_db_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT option_text, vote_count
+        FROM article_votes
+        WHERE article_id = ?
+        ORDER BY vote_count DESC
+    """, (article_id,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    results = {row["option_text"]: row["vote_count"] for row in rows}
+
+    if options:
+        for opt in options:
+            results.setdefault(opt, 0)
+
+    return results
+
+
+# ─────────────────────────────────────────────────────────────────
+# Feed helpers
+# ─────────────────────────────────────────────────────────────────
 def filter_by_date(entries, days=3):
     now = datetime.now()
     out = []
@@ -272,9 +416,11 @@ def filter_by_date(entries, days=3):
 def fetch_feed(url: str):
     """Fetch a single RSS feed with a browser User-Agent to avoid 403s."""
     headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                      'AppleWebKit/537.36 (KHTML, like Gecko) '
-                      'Chrome/120.0.0.0 Safari/537.36',
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
     }
 
     try:
@@ -287,19 +433,21 @@ def fetch_feed(url: str):
 async def fetch_article_text_async(session, url):
     try:
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                          'AppleWebKit/537.36 (KHTML, like Gecko) '
-                          'Chrome/120.0.0.0 Safari/537.36',
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            ),
         }
 
         async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=6)) as resp:
-            html = await resp.read()
-            soup = BeautifulSoup(html, 'lxml')
-            text = ' '.join(p.get_text() for p in soup.find_all('p'))
-            return text or ''
+            html_content = await resp.read()
+            soup = BeautifulSoup(html_content, "lxml")
+            text = " ".join(p.get_text() for p in soup.find_all("p"))
+            return text or ""
 
     except Exception:
-        return ''
+        return ""
 
 
 async def fetch_all_texts(urls):
@@ -307,10 +455,19 @@ async def fetch_all_texts(urls):
         return await asyncio.gather(*[fetch_article_text_async(session, u) for u in urls])
 
 
-# ── NLP ───────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# NLP
+# ─────────────────────────────────────────────────────────────────
 @st.cache_resource
 def load_nlp():
-    return spacy.load("en_core_web_lg")
+    try:
+        return spacy.load("en_core_web_lg")
+    except OSError:
+        st.error(
+            "spaCy model 'en_core_web_lg' is not installed. "
+            "Run: python -m spacy download en_core_web_lg"
+        )
+        st.stop()
 
 
 @st.cache_data(show_spinner=False)
@@ -321,14 +478,14 @@ def extract_entities(text):
     return list({
         e.text
         for e in doc.ents
-        if e.label_ in ['PERSON', 'ORG', 'GPE']
+        if e.label_ in ["PERSON", "ORG", "GPE"]
     })
 
 
 def determine_options(entry, content):
     title = entry.title.lower()
 
-    if any(w in title for w in ['policy', 'election', 'vote', 'bill', 'law', 'ban']):
+    if any(w in title for w in ["policy", "election", "vote", "bill", "law", "ban"]):
         return ["Yes", "No", "Not sure"]
 
     entities = extract_entities(content)
@@ -341,53 +498,72 @@ def determine_options(entry, content):
     return ["Support", "Oppose", "Neutral"]
 
 
-# ── Poll ──────────────────────────────────────────────────────────
-def create_poll(article_id, options):
-    key = f"votes_{article_id}"
-
-    if key not in st.session_state:
-        st.session_state[key] = {o: 0 for o in options}
-
-    votes = st.session_state[key]
-
+# ─────────────────────────────────────────────────────────────────
+# Poll UI
+# ─────────────────────────────────────────────────────────────────
+def create_poll(article_id, article_url, article_title, options):
     st.markdown("**Have your say:**")
 
-    custom = st.text_input("Add your own stance:", key=f"custom_{article_id}")
+    already_voted_option = has_user_voted(article_id)
 
-    if custom and st.button("Add & vote", key=f"add_custom_{article_id}"):
-        tag = f"#{custom.replace(' ', '')}"
+    if already_voted_option:
+        st.info(f"You have already voted on this article: `{already_voted_option}`")
+    else:
+        custom = st.text_input("Add your own stance:", key=f"custom_{article_id}")
 
-        if tag not in options:
-            options.append(tag)
-            votes[tag] = 0
+        if custom and st.button("Add & vote", key=f"add_custom_{article_id}"):
+            tag = f"#{custom.replace(' ', '')}"
 
-        if track_vote(article_id):
-            votes[tag] += 1
-            st.session_state[key] = votes
+            success = record_vote(
+                article_id=article_id,
+                article_url=article_url,
+                article_title=article_title,
+                option_text=tag,
+            )
 
-    cols = st.columns(min(len(options), 3))
+            if success:
+                st.success("Vote recorded.")
+                st.rerun()
+            else:
+                st.warning("You've already voted on this article.")
 
-    for i, opt in enumerate(options):
-        tag = f"#{opt.replace(' ', '')}" if not opt.startswith('#') else opt
+        cols = st.columns(min(len(options), 3))
 
-        with cols[i % 3]:
-            if st.button(tag, key=f"vote_{article_id}_{opt}"):
-                if track_vote(article_id):
-                    votes[opt] = votes.get(opt, 0) + 1
-                    st.session_state[key] = votes
+        for i, opt in enumerate(options):
+            tag = f"#{opt.replace(' ', '')}" if not opt.startswith("#") else opt
 
-    total = sum(votes.values())
+            with cols[i % 3]:
+                if st.button(tag, key=f"vote_{article_id}_{opt}"):
+                    success = record_vote(
+                        article_id=article_id,
+                        article_url=article_url,
+                        article_title=article_title,
+                        option_text=opt,
+                    )
 
-    if total > 0:
-        st.markdown("**Current results:**")
+                    if success:
+                        st.success("Vote recorded.")
+                        st.rerun()
+                    else:
+                        st.warning("You've already voted on this article.")
 
-        for opt, count in sorted(votes.items(), key=lambda x: -x[1]):
+    results = get_vote_results(article_id, options)
+    total = sum(results.values())
+
+    st.markdown("**Current results:**")
+
+    if total == 0:
+        st.caption("No votes yet. Be the first to vote.")
+    else:
+        for opt, count in sorted(results.items(), key=lambda x: -x[1]):
             pct = count / total * 100
             st.write(f"`{opt}` — {count} vote{'s' if count != 1 else ''} ({pct:.0f}%)")
             st.progress(pct / 100)
 
 
-# ── Tutorial ──────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# Tutorial page
+# ─────────────────────────────────────────────────────────────────
 def tutorial():
     st.markdown("## About EKO")
 
@@ -397,20 +573,22 @@ EKO lets you vote on real news stories and see how others around the world feel 
 **How it works:**
 1. Pick a news source and browse today's articles.
 2. Hit UPROAR to cast your vote on any story.
-3. See live results — anonymously and without censorship.
+3. See live results anonymously.
 
 **Why it matters:**
 Most news platforms are one-way. EKO gives the audience a way to push back, agree, or complicate the narrative. Every vote is anonymous by default.
 
-**Getting started:** click *Continue anonymously* to register — no email, no tracking.
+**Getting started:** click *Continue anonymously* to register.
     """)
 
     if st.button("← Back"):
-        st.session_state['page'] = "Main"
+        st.session_state["page"] = "Main"
         st.rerun()
 
 
-# ── CSS ───────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# CSS
+# ─────────────────────────────────────────────────────────────────
 def apply_css():
     st.markdown("""
 <style>
@@ -424,7 +602,6 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     min-height: 100vh;
 }
 
-/* Header */
 .eko-header {
     text-align: center;
     padding: 10px 0 24px;
@@ -446,7 +623,6 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     margin-top: 4px;
 }
 
-/* Cards */
 .news-card {
     background: rgba(255,255,255,0.04);
     border: 1px solid rgba(255,255,255,0.08);
@@ -504,7 +680,6 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     margin-bottom: 10px;
 }
 
-/* Share dropdown */
 .share-btn {
     position: absolute;
     top: 12px;
@@ -550,7 +725,6 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     display: block;
 }
 
-/* Sidebar */
 [data-testid="stSidebar"] {
     background: #100920 !important;
     border-right: 1px solid rgba(255,255,255,0.06) !important;
@@ -566,7 +740,6 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     color: #c084fc !important;
 }
 
-/* Buttons */
 .stButton > button {
     background: linear-gradient(135deg, #7c3aed, #4f46e5) !important;
     color: #fff !important;
@@ -581,7 +754,6 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     transform: scale(1.02) !important;
 }
 
-/* Inputs */
 .stTextInput input,
 .stSelectbox > div > div,
 .stMultiSelect > div > div {
@@ -595,7 +767,6 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     background: linear-gradient(90deg, #7c3aed, #c084fc) !important;
 }
 
-/* Source selector */
 .source-pill {
     display: inline-block;
     padding: 4px 12px;
@@ -616,14 +787,15 @@ function copyToClipboard(text) {
 """, unsafe_allow_html=True)
 
 
-# ── Main app ──────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+# Main app
+# ─────────────────────────────────────────────────────────────────
 def main():
     apply_css()
 
-    # Session defaults
-    st.session_state.setdefault('page', 'Main')
-    st.session_state.setdefault('dark_mode', True)
-    st.session_state.setdefault('saved_posts', [])
+    st.session_state.setdefault("page", "Main")
+    st.session_state.setdefault("dark_mode", True)
+    st.session_state.setdefault("saved_posts", [])
 
     # Restore session from cookies
     if "user" not in st.session_state:
@@ -633,17 +805,15 @@ def main():
             st.session_state["user"] = stored_user
             st.session_state["username"] = controller.get("anonymous_name") or "Anonymous"
 
-    # Tutorial page
-    if st.session_state['page'] == "Tutorial":
+    if st.session_state["page"] == "Tutorial":
         tutorial()
         return
 
-    # Register page
-    if st.session_state['page'] == "Register":
+    if st.session_state["page"] == "Register":
         register_anonymous()
         return
 
-    # ── Sidebar ───────────────────────────────────────────────────
+    # Sidebar
     with st.sidebar:
         st.markdown("## 🗣️ EKO")
 
@@ -654,7 +824,7 @@ def main():
             st.warning("Not logged in")
 
             if st.button("Register anonymously"):
-                st.session_state['page'] = "Register"
+                st.session_state["page"] = "Register"
                 st.rerun()
 
         st.markdown("---")
@@ -669,7 +839,7 @@ def main():
                 if st.button("Remove", key=f"rm_{i}"):
                     st.session_state.saved_posts = [
                         p for p in saved
-                        if p['link'] != post['link']
+                        if p["link"] != post["link"]
                     ]
                     st.rerun()
         else:
@@ -678,10 +848,10 @@ def main():
         st.markdown("---")
 
         if st.button("About EKO"):
-            st.session_state['page'] = "Tutorial"
+            st.session_state["page"] = "Tutorial"
             st.rerun()
 
-    # ── Header ────────────────────────────────────────────────────
+    # Header
     st.markdown("""
 <div class="eko-header">
     <h1>EKO</h1>
@@ -689,7 +859,7 @@ def main():
 </div>
 """, unsafe_allow_html=True)
 
-    # ── Source picker ─────────────────────────────────────────────
+    # News source picker
     NEWS_SOURCES = {
         "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
         "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
@@ -719,7 +889,7 @@ def main():
         st.info("Select at least one news source above.")
         return
 
-    # ── Fetch feeds ───────────────────────────────────────────────
+    # Fetch feeds
     with st.spinner("Fetching articles…"):
         all_entries = []
 
@@ -727,7 +897,7 @@ def main():
             feed = fetch_feed(NEWS_SOURCES[src])
 
             for e in feed.entries:
-                e['_source'] = src
+                e["_source"] = src
                 all_entries.append(e)
 
     entries = filter_by_date(all_entries, days=days)
@@ -737,8 +907,8 @@ def main():
         q = search_q.lower()
         entries = [
             e for e in entries
-            if q in e.get('title', '').lower()
-            or q in e.get('summary', '').lower()
+            if q in e.get("title", "").lower()
+            or q in e.get("summary", "").lower()
         ]
 
     if not entries:
@@ -747,7 +917,7 @@ def main():
 
     st.caption(f"{len(entries)} articles · last {days} day{'s' if days != 1 else ''}")
 
-    # ── Fetch article text for polls ──────────────────────────────
+    # Fetch article text for poll options
     with st.spinner("Loading article content…"):
         urls = [e.link for e in entries]
 
@@ -756,51 +926,58 @@ def main():
             asyncio.set_event_loop(loop)
             texts = loop.run_until_complete(fetch_all_texts(urls))
         except Exception:
-            texts = [''] * len(entries)
+            texts = [""] * len(entries)
 
-    # ── Article grid ──────────────────────────────────────────────
+    # Article grid
     cols = st.columns(3)
 
     for idx, (entry, content) in enumerate(zip(entries, texts)):
         col = cols[idx % 3]
 
         article_url = entry.link
-        source = entry.get('_source', '')
+        article_title = entry.title
+        article_id = hashlib.md5(article_url.encode()).hexdigest()
+        source = entry.get("_source", "")
 
-        # Image resolution
         image_url = extract_image_from_entry(entry)
 
         if not image_url:
             image_url = scrape_article_image(article_url)
 
-        # Share URLs
-        tw = f"https://twitter.com/intent/tweet?url={article_url}&text={entry.title}"
-        fb = f"https://www.facebook.com/sharer/sharer.php?u={article_url}"
-        li = f"https://www.linkedin.com/shareArticle?mini=true&url={article_url}&title={entry.title}"
+        safe_url = html.escape(article_url, quote=True)
+        safe_title = html.escape(article_title, quote=True)
+        safe_source = html.escape(source, quote=True)
+        js_safe_url = quote(article_url, safe="")
+
+        tw = f"https://twitter.com/intent/tweet?url={safe_url}&text={safe_title}"
+        fb = f"https://www.facebook.com/sharer/sharer.php?u={safe_url}"
+        li = f"https://www.linkedin.com/shareArticle?mini=true&url={safe_url}&title={safe_title}"
 
         img_html = ""
 
         if image_url:
+            safe_img_url = html.escape(image_url, quote=True)
             img_html = (
-                f'<img src="{image_url}" alt="" '
+                f'<img src="{safe_img_url}" alt="" '
                 f'onerror="this.style.display=\'none\'" />'
             )
 
-        summary = entry.get('summary', '')
-        clean_summary = BeautifulSoup(summary, 'html.parser').get_text()[:200]
+        summary = entry.get("summary", "")
+        clean_summary = BeautifulSoup(summary, "html.parser").get_text()[:200]
+        safe_summary = html.escape(clean_summary, quote=True)
 
         card_html = f"""
 <div class="news-card">
     {img_html}
     <div class="meta">
-        <span class="source-pill">{source}</span>
+        <span class="source-pill">{safe_source}</span>
     </div>
-    <h3><a href="{article_url}" target="_blank">{entry.title}</a></h3>
-    <p>{clean_summary}…</p>
+    <h3><a href="{safe_url}" target="_blank">{safe_title}</a></h3>
+    <p>{safe_summary}…</p>
     <div class="share-btn">
         <button class="dropbtn">Share ▾</button>
         <div class="dropdown-content">
-            <a href="#" onclick="copyToClipboard('{article_url}')">📋 Copy link</a>
+            <a href="#" onclick="copyToClipboard(decodeURIComponent('{js_safe_url}'))">📋 Copy link</a>
             <a href="{tw}" target="_blank">🐦 Twitter</a>
             <a href="{fb}" target="_blank">📘 Facebook</a>
             <a href="{li}" target="_blank">💼 LinkedIn</a>
@@ -813,12 +990,12 @@ def main():
             st.markdown(card_html, unsafe_allow_html=True)
 
             if st.button("💾 Save", key=f"save_{idx}"):
-                if not any(p['link'] == article_url for p in st.session_state.saved_posts):
+                if not any(p["link"] == article_url for p in st.session_state.saved_posts):
                     st.session_state.saved_posts.append({
-                        'title': entry.title,
-                        'link': article_url
+                        "title": article_title,
+                        "link": article_url,
                     })
-                    st.success("Saved!")
+                    st.success("Saved.")
                 else:
                     st.info("Already saved.")
 
@@ -827,12 +1004,17 @@ def main():
                     options = determine_options(entry, content)
 
                     with st.expander("🗣️ UPROAR — have your say"):
-                        create_poll(article_url, options)
+                        create_poll(
+                            article_id=article_id,
+                            article_url=article_url,
+                            article_title=article_title,
+                            options=options,
+                        )
                 else:
                     st.caption("Register anonymously to vote.")
 
                     if st.button("Join the conversation", key=f"join_{idx}"):
-                        st.session_state['page'] = "Register"
+                        st.session_state["page"] = "Register"
                         st.rerun()
 
             st.markdown("---")
