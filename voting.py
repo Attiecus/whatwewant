@@ -10,9 +10,6 @@ import hashlib
 import time
 from streamlit_cookies_controller import CookieController
 import json
-import firebase_admin
-from firebase_admin import credentials, auth
-from firebase_admin._auth_utils import UserNotFoundError, EmailAlreadyExistsError
 from datetime import datetime, timedelta
 from PIL import Image
 from urllib.parse import urlencode
@@ -21,19 +18,13 @@ import streamlit.components.v1 as components
 from colorthief import ColorThief
 from io import BytesIO
 
+
 st.set_page_config(layout='wide', page_title='EKO', page_icon='🗣️')
 
-# ── Firebase ──────────────────────────────────────────────────────
-if not firebase_admin._apps:
-    try:
-        cred = credentials.Certificate("echo-73aeb-firebase-adminsdk-5cxbo-01aa7691b8.json")
-        firebase_admin.initialize_app(cred)
-    except Exception as e:
-        st.error(f"Firebase init error: {e}")
-        st.stop()
 
 # ── Cookie controller ─────────────────────────────────────────────
 controller = CookieController()
+
 
 # ── Image helpers ─────────────────────────────────────────────────
 def extract_image_from_entry(entry):
@@ -41,7 +32,7 @@ def extract_image_from_entry(entry):
     Try every standard RSS/Atom image field before falling back to page scraping.
     Sky News uses media:thumbnail → feedparser maps this to entry.media_thumbnail.
     """
-    # 1. media:thumbnail  (Sky News, BBC, Guardian)
+    # 1. media:thumbnail
     mt = getattr(entry, 'media_thumbnail', None)
     if mt and isinstance(mt, list) and mt[0].get('url'):
         return mt[0]['url']
@@ -120,16 +111,58 @@ def create_css_gradient(colors):
     return f"linear-gradient(135deg, {', '.join(rgb_to_hex(c) for c in colors)})"
 
 
-# ── Auth helpers ──────────────────────────────────────────────────
+# ── Auth helpers: Firebase-free version ───────────────────────────
+def get_client_ip():
+    """
+    Best-effort client IP capture.
+
+    Note:
+    - On local machine, this may return unknown_ip.
+    - On hosted apps, IP may come through reverse proxy headers.
+    - IP alone is not a perfect identity, so we combine it with a browser cookie.
+    """
+    try:
+        headers = st.context.headers
+
+        forwarded_for = headers.get("X-Forwarded-For")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
+
+        real_ip = headers.get("X-Real-IP")
+        if real_ip:
+            return real_ip.strip()
+
+        remote_addr = headers.get("Remote-Addr")
+        if remote_addr:
+            return remote_addr.strip()
+
+    except Exception:
+        pass
+
+    return "unknown_ip"
+
+
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 
 def get_or_create_user_id():
+    """
+    Creates a stable anonymous user ID using:
+    1. Browser cookie
+    2. Client IP as additional soft identity input
+
+    This avoids Firebase completely.
+    """
     uid = controller.get("user_id")
+
     if not uid:
-        uid = hashlib.sha256(str(time.time()).encode()).hexdigest()
+        client_ip = get_client_ip()
+        raw_id = f"{client_ip}_{time.time()}_{random.randint(1000, 9999)}"
+        uid = hashlib.sha256(raw_id.encode()).hexdigest()
         controller.set("user_id", uid)
+        controller.set("user_ip", client_ip)
+
     return uid
 
 
@@ -139,59 +172,82 @@ user_id = get_or_create_user_id()
 def check_login():
     if "user" not in st.session_state:
         return False
+
     if "voted_articles" not in st.session_state:
         raw = controller.get('voted_articles') or "[]"
+
         if not isinstance(raw, str):
             raw = json.dumps(raw)
+
         try:
             st.session_state["voted_articles"] = json.loads(raw)
         except json.JSONDecodeError:
             st.session_state["voted_articles"] = []
+
     return True
 
 
 def track_vote(article_id):
+    """
+    Prevents repeat voting from the same browser cookie.
+    This is not a server-side database lock, but works for a simple prototype.
+    """
     if "voted_articles" not in st.session_state or not isinstance(st.session_state["voted_articles"], list):
         st.session_state["voted_articles"] = []
+
     if article_id not in st.session_state["voted_articles"]:
         st.session_state["voted_articles"].append(article_id)
         controller.set("voted_articles", json.dumps(st.session_state["voted_articles"]))
         return True
+
     st.warning("You've already voted on this article.")
     return False
 
 
 def register_anonymous():
+    """
+    Anonymous registration without Firebase.
+    Uses cookies and a best-effort IP capture.
+    """
     st.markdown("<h2 style='text-align:center;'>Register anonymously</h2>", unsafe_allow_html=True)
     st.write("No email needed — your identity stays protected.")
+    st.caption("Your IP address may be used only to maintain anonymous voting integrity.")
+
     if st.button("Continue anonymously", key="anon_reg_btn"):
-        anon_id = controller.get("anonymous_id") or user_id
-        random_name = f"User{random.randint(1000, 9999)}"
-        controller.set("anonymous_id", anon_id)
-        controller.set("anonymous_name", random_name)
-        try:
-            try:
-                auth.get_user(anon_id)
-                st.warning("ID already exists — logging in.")
-            except UserNotFoundError:
-                auth.create_user(uid=anon_id)
-                st.success("Registered!")
-            st.session_state.update({
-                "user": anon_id,
-                "username": random_name,
-                "voted_articles": [],
-                "page": "Main",
-            })
-            controller.set("user", anon_id)
-            st.rerun()
-        except Exception as e:
-            st.error(f"Registration failed: {e}")
+        anon_id = controller.get("anonymous_id")
+
+        if not anon_id:
+            client_ip = get_client_ip()
+            raw_id = f"{client_ip}_{time.time()}_{random.randint(1000, 9999)}"
+            anon_id = hashlib.sha256(raw_id.encode()).hexdigest()
+
+            controller.set("anonymous_id", anon_id)
+            controller.set("user_ip", client_ip)
+
+        random_name = controller.get("anonymous_name")
+
+        if not random_name:
+            random_name = f"User{random.randint(1000, 9999)}"
+            controller.set("anonymous_name", random_name)
+
+        controller.set("user", anon_id)
+
+        st.session_state.update({
+            "user": anon_id,
+            "username": random_name,
+            "voted_articles": [],
+            "page": "Main",
+        })
+
+        st.success("Registered anonymously!")
+        st.rerun()
 
 
 def logout():
     if st.sidebar.button("Logout", key="logout_btn"):
         for k in ["user", "voted_articles", "username"]:
             st.session_state.pop(k, None)
+
         controller.remove("user")
         st.rerun()
 
@@ -200,13 +256,15 @@ def logout():
 def filter_by_date(entries, days=3):
     now = datetime.now()
     out = []
+
     for e in entries:
         try:
             pub = datetime(*e.published_parsed[:6])
             if now - timedelta(days=days) <= pub <= now:
                 out.append(e)
         except Exception:
-            out.append(e)   # include if date parsing fails
+            out.append(e)
+
     return out
 
 
@@ -218,6 +276,7 @@ def fetch_feed(url: str):
                       'AppleWebKit/537.36 (KHTML, like Gecko) '
                       'Chrome/120.0.0.0 Safari/537.36',
     }
+
     try:
         r = requests.get(url, headers=headers, timeout=8)
         return feedparser.parse(r.text)
@@ -232,11 +291,13 @@ async def fetch_article_text_async(session, url):
                           'AppleWebKit/537.36 (KHTML, like Gecko) '
                           'Chrome/120.0.0.0 Safari/537.36',
         }
+
         async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=6)) as resp:
             html = await resp.read()
             soup = BeautifulSoup(html, 'lxml')
             text = ' '.join(p.get_text() for p in soup.find_all('p'))
             return text or ''
+
     except Exception:
         return ''
 
@@ -255,43 +316,60 @@ def load_nlp():
 @st.cache_data(show_spinner=False)
 def extract_entities(text):
     nlp = load_nlp()
-    doc = nlp(text[:5000])   # cap at 5k chars for speed
-    return list({e.text for e in doc.ents if e.label_ in ['PERSON', 'ORG', 'GPE']})
+    doc = nlp(text[:5000])
+
+    return list({
+        e.text
+        for e in doc.ents
+        if e.label_ in ['PERSON', 'ORG', 'GPE']
+    })
 
 
 def determine_options(entry, content):
     title = entry.title.lower()
+
     if any(w in title for w in ['policy', 'election', 'vote', 'bill', 'law', 'ban']):
         return ["Yes", "No", "Not sure"]
+
     entities = extract_entities(content)
+
     if entities:
         counts = {e: entities.count(e) for e in set(entities)}
         top = sorted(counts, key=counts.get, reverse=True)[:5]
         return top
+
     return ["Support", "Oppose", "Neutral"]
 
 
 # ── Poll ──────────────────────────────────────────────────────────
 def create_poll(article_id, options):
     key = f"votes_{article_id}"
+
     if key not in st.session_state:
         st.session_state[key] = {o: 0 for o in options}
+
     votes = st.session_state[key]
 
     st.markdown("**Have your say:**")
+
     custom = st.text_input("Add your own stance:", key=f"custom_{article_id}")
+
     if custom and st.button("Add & vote", key=f"add_custom_{article_id}"):
         tag = f"#{custom.replace(' ', '')}"
+
         if tag not in options:
             options.append(tag)
             votes[tag] = 0
+
         if track_vote(article_id):
             votes[tag] += 1
             st.session_state[key] = votes
 
     cols = st.columns(min(len(options), 3))
+
     for i, opt in enumerate(options):
         tag = f"#{opt.replace(' ', '')}" if not opt.startswith('#') else opt
+
         with cols[i % 3]:
             if st.button(tag, key=f"vote_{article_id}_{opt}"):
                 if track_vote(article_id):
@@ -299,8 +377,10 @@ def create_poll(article_id, options):
                     st.session_state[key] = votes
 
     total = sum(votes.values())
+
     if total > 0:
         st.markdown("**Current results:**")
+
         for opt, count in sorted(votes.items(), key=lambda x: -x[1]):
             pct = count / total * 100
             st.write(f"`{opt}` — {count} vote{'s' if count != 1 else ''} ({pct:.0f}%)")
@@ -310,6 +390,7 @@ def create_poll(article_id, options):
 # ── Tutorial ──────────────────────────────────────────────────────
 def tutorial():
     st.markdown("## About EKO")
+
     st.write("""
 EKO lets you vote on real news stories and see how others around the world feel about the same topics.
 
@@ -323,6 +404,7 @@ Most news platforms are one-way. EKO gives the audience a way to push back, agre
 
 **Getting started:** click *Continue anonymously* to register — no email, no tracking.
     """)
+
     if st.button("← Back"):
         st.session_state['page'] = "Main"
         st.rerun()
@@ -347,6 +429,7 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     text-align: center;
     padding: 10px 0 24px;
 }
+
 .eko-header h1 {
     font-size: 5em;
     font-weight: 700;
@@ -356,6 +439,7 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     letter-spacing: -2px;
     margin: 0;
 }
+
 .eko-header p {
     color: rgba(255,255,255,0.5);
     font-size: 1.1em;
@@ -373,10 +457,12 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     position: relative;
     overflow: hidden;
 }
+
 .news-card:hover {
     transform: translateY(-3px);
     border-color: rgba(192,132,252,0.4);
 }
+
 .news-card img {
     width: 100%;
     border-radius: 10px;
@@ -384,17 +470,23 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     object-fit: cover;
     max-height: 180px;
 }
+
 .news-card h3 {
     font-size: 1em;
     font-weight: 600;
     margin: 0 0 8px;
     line-height: 1.4;
 }
+
 .news-card h3 a {
     color: #e2d9f3;
     text-decoration: none;
 }
-.news-card h3 a:hover { color: #c084fc; }
+
+.news-card h3 a:hover {
+    color: #c084fc;
+}
+
 .news-card p {
     font-size: 0.85em;
     color: rgba(255,255,255,0.5);
@@ -405,6 +497,7 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     -webkit-box-orient: vertical;
     overflow: hidden;
 }
+
 .news-card .meta {
     font-size: 0.75em;
     color: rgba(255,255,255,0.3);
@@ -412,7 +505,12 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
 }
 
 /* Share dropdown */
-.share-btn { position: absolute; top: 12px; right: 12px; }
+.share-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+}
+
 .share-btn .dropbtn {
     background: rgba(255,255,255,0.08);
     border: 1px solid rgba(255,255,255,0.12);
@@ -422,28 +520,51 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     cursor: pointer;
     font-size: 13px;
 }
+
 .share-btn .dropdown-content {
-    display: none; position: absolute; right: 0; top: 32px;
-    background: #1e1535; border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 10px; min-width: 160px; z-index: 10;
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 32px;
+    background: #1e1535;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 10px;
+    min-width: 160px;
+    z-index: 10;
     box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
+
 .share-btn .dropdown-content a {
-    color: #d4c8f0; padding: 10px 14px; display: block;
-    font-size: 13px; text-decoration: none;
+    color: #d4c8f0;
+    padding: 10px 14px;
+    display: block;
+    font-size: 13px;
+    text-decoration: none;
 }
-.share-btn .dropdown-content a:hover { background: rgba(255,255,255,0.06); }
-.share-btn:hover .dropdown-content { display: block; }
+
+.share-btn .dropdown-content a:hover {
+    background: rgba(255,255,255,0.06);
+}
+
+.share-btn:hover .dropdown-content {
+    display: block;
+}
 
 /* Sidebar */
 [data-testid="stSidebar"] {
     background: #100920 !important;
     border-right: 1px solid rgba(255,255,255,0.06) !important;
 }
-[data-testid="stSidebar"] * { color: rgba(255,255,255,0.75) !important; }
+
+[data-testid="stSidebar"] * {
+    color: rgba(255,255,255,0.75) !important;
+}
+
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 { color: #c084fc !important; }
+[data-testid="stSidebar"] h3 {
+    color: #c084fc !important;
+}
 
 /* Buttons */
 .stButton > button {
@@ -454,19 +575,25 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     font-weight: 600 !important;
     transition: opacity 0.2s, transform 0.1s !important;
 }
+
 .stButton > button:hover {
     opacity: 0.88 !important;
     transform: scale(1.02) !important;
 }
 
 /* Inputs */
-.stTextInput input, .stSelectbox > div > div, .stMultiSelect > div > div {
+.stTextInput input,
+.stSelectbox > div > div,
+.stMultiSelect > div > div {
     background: rgba(255,255,255,0.06) !important;
     border: 1px solid rgba(255,255,255,0.1) !important;
     color: #f0e8ff !important;
     border-radius: 10px !important;
 }
-.stProgress > div > div { background: linear-gradient(90deg, #7c3aed, #c084fc) !important; }
+
+.stProgress > div > div {
+    background: linear-gradient(90deg, #7c3aed, #c084fc) !important;
+}
 
 /* Source selector */
 .source-pill {
@@ -480,6 +607,7 @@ html, body, [class*="css"] { font-family: 'Outfit', sans-serif; }
     margin: 2px;
 }
 </style>
+
 <script>
 function copyToClipboard(text) {
     navigator.clipboard.writeText(text).then(() => alert('Link copied!'));
@@ -500,8 +628,9 @@ def main():
     # Restore session from cookies
     if "user" not in st.session_state:
         stored_user = controller.get("user")
+
         if stored_user:
-            st.session_state["user"]     = stored_user
+            st.session_state["user"] = stored_user
             st.session_state["username"] = controller.get("anonymous_name") or "Anonymous"
 
     # Tutorial page
@@ -523,23 +652,31 @@ def main():
             logout()
         else:
             st.warning("Not logged in")
+
             if st.button("Register anonymously"):
                 st.session_state['page'] = "Register"
                 st.rerun()
 
         st.markdown("---")
         st.markdown("### Saved articles")
+
         saved = st.session_state.saved_posts
+
         if saved:
             for i, post in enumerate(saved):
                 st.markdown(f"[{post['title'][:50]}...]({post['link']})")
+
                 if st.button("Remove", key=f"rm_{i}"):
-                    st.session_state.saved_posts = [p for p in saved if p['link'] != post['link']]
+                    st.session_state.saved_posts = [
+                        p for p in saved
+                        if p['link'] != post['link']
+                    ]
                     st.rerun()
         else:
             st.caption("No saved articles yet.")
 
         st.markdown("---")
+
         if st.button("About EKO"):
             st.session_state['page'] = "Tutorial"
             st.rerun()
@@ -554,27 +691,29 @@ def main():
 
     # ── Source picker ─────────────────────────────────────────────
     NEWS_SOURCES = {
-        "Sky News":        "https://feeds.skynews.com/feeds/rss/home.xml",
-        "BBC":             "http://feeds.bbci.co.uk/news/rss.xml",
-        "RTE":             "https://www.rte.ie/rss/news.xml",
-        "Al Jazeera":      "http://www.aljazeera.com/xml/rss/all.xml",
-        "ESPN":            "https://www.espn.com/espn/rss/news",
-        "Business Insider":"https://www.businessinsider.com/rss",
-        "The Guardian":    "https://www.theguardian.com/world/rss",
+        "Sky News": "https://feeds.skynews.com/feeds/rss/home.xml",
+        "BBC": "http://feeds.bbci.co.uk/news/rss.xml",
+        "RTE": "https://www.rte.ie/rss/news.xml",
+        "Al Jazeera": "http://www.aljazeera.com/xml/rss/all.xml",
+        "ESPN": "https://www.espn.com/espn/rss/news",
+        "Business Insider": "https://www.businessinsider.com/rss",
+        "The Guardian": "https://www.theguardian.com/world/rss",
     }
 
     c1, c2 = st.columns([3, 1])
+
     with c1:
         selected = st.multiselect(
             "Select news sources:",
             list(NEWS_SOURCES.keys()),
             default=["Sky News", "BBC"],
         )
+
     with c2:
         days = st.slider("Days back", 1, 7, 3)
 
     show_votes = st.checkbox("Show voting section", value=True)
-    search_q   = st.text_input("🔍 Search articles", placeholder="e.g. climate, election…")
+    search_q = st.text_input("🔍 Search articles", placeholder="e.g. climate, election…")
 
     if not selected:
         st.info("Select at least one news source above.")
@@ -583,8 +722,10 @@ def main():
     # ── Fetch feeds ───────────────────────────────────────────────
     with st.spinner("Fetching articles…"):
         all_entries = []
+
         for src in selected:
             feed = fetch_feed(NEWS_SOURCES[src])
+
             for e in feed.entries:
                 e['_source'] = src
                 all_entries.append(e)
@@ -594,8 +735,11 @@ def main():
     # Search filter
     if search_q:
         q = search_q.lower()
-        entries = [e for e in entries
-                   if q in e.get('title','').lower() or q in e.get('summary','').lower()]
+        entries = [
+            e for e in entries
+            if q in e.get('title', '').lower()
+            or q in e.get('summary', '').lower()
+        ]
 
     if not entries:
         st.warning("No articles found for the selected sources and date range.")
@@ -603,9 +747,10 @@ def main():
 
     st.caption(f"{len(entries)} articles · last {days} day{'s' if days != 1 else ''}")
 
-    # ── Fetch article text (for polls) ────────────────────────────
+    # ── Fetch article text for polls ──────────────────────────────
     with st.spinner("Loading article content…"):
         urls = [e.link for e in entries]
+
         try:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -618,12 +763,13 @@ def main():
 
     for idx, (entry, content) in enumerate(zip(entries, texts)):
         col = cols[idx % 3]
-        article_url = entry.link
-        post_id     = hashlib.md5(article_url.encode()).hexdigest()
-        source      = entry.get('_source', '')
 
-        # ── Image resolution: RSS fields first, scrape as fallback ─
+        article_url = entry.link
+        source = entry.get('_source', '')
+
+        # Image resolution
         image_url = extract_image_from_entry(entry)
+
         if not image_url:
             image_url = scrape_article_image(article_url)
 
@@ -633,6 +779,7 @@ def main():
         li = f"https://www.linkedin.com/shareArticle?mini=true&url={article_url}&title={entry.title}"
 
         img_html = ""
+
         if image_url:
             img_html = (
                 f'<img src="{image_url}" alt="" '
@@ -640,7 +787,6 @@ def main():
             )
 
         summary = entry.get('summary', '')
-        # Strip HTML from summary
         clean_summary = BeautifulSoup(summary, 'html.parser').get_text()[:200]
 
         card_html = f"""
@@ -662,12 +808,16 @@ def main():
     </div>
 </div>
 """
+
         with col:
             st.markdown(card_html, unsafe_allow_html=True)
 
             if st.button("💾 Save", key=f"save_{idx}"):
                 if not any(p['link'] == article_url for p in st.session_state.saved_posts):
-                    st.session_state.saved_posts.append({'title': entry.title, 'link': article_url})
+                    st.session_state.saved_posts.append({
+                        'title': entry.title,
+                        'link': article_url
+                    })
                     st.success("Saved!")
                 else:
                     st.info("Already saved.")
@@ -675,10 +825,12 @@ def main():
             if show_votes:
                 if check_login():
                     options = determine_options(entry, content)
+
                     with st.expander("🗣️ UPROAR — have your say"):
                         create_poll(article_url, options)
                 else:
                     st.caption("Register anonymously to vote.")
+
                     if st.button("Join the conversation", key=f"join_{idx}"):
                         st.session_state['page'] = "Register"
                         st.rerun()
